@@ -2,7 +2,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DiscountProduct } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+let aiClient: GoogleGenAI | null = null;
+const getAi = () => {
+  if (!aiClient) {
+    const key = (typeof process !== 'undefined' && process.env && (process.env.API_KEY || process.env.GEMINI_API_KEY)) || '';
+    aiClient = new GoogleGenAI({ apiKey: key });
+  }
+  return aiClient;
+};
 
 const extractProductsFromStream = (text: string): DiscountProduct[] => {
   if (!text || text.trim().length === 0) return [];
@@ -68,6 +75,7 @@ export const analyzeCatalogStream = async (
       3. YALNIZ bu səhifədə olan real endirimli məhsulları yaz.
     `;
 
+    const ai = getAi();
     const responseStream = await ai.models.generateContentStream({
       model: "gemini-3-flash-preview",
       contents: {
