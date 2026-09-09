@@ -80,6 +80,82 @@ const getEmbedUrl = (url: string) => {
   return `${clean}/embed/`;
 };
 
+const MARKET_COLOR_STYLES: Record<string, { unselected: string; selected: string }> = {
+  araz: {
+    unselected: 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300/80',
+    selected: 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-500/25'
+  },
+  bravo: {
+    unselected: 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-300/80',
+    selected: 'bg-amber-500 text-white shadow-xs ring-2 ring-amber-400/25'
+  },
+  bazarstore: {
+    unselected: 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100 border border-indigo-300/80',
+    selected: 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-500/25'
+  },
+  oba: {
+    unselected: 'bg-teal-50 text-teal-800 hover:bg-teal-100 border border-teal-300/80',
+    selected: 'bg-teal-600 text-white shadow-xs ring-2 ring-teal-500/25'
+  },
+  neptun: {
+    unselected: 'bg-orange-50 text-orange-800 hover:bg-orange-100 border border-orange-300/80',
+    selected: 'bg-orange-600 text-white shadow-xs ring-2 ring-orange-500/25'
+  },
+  rahat: {
+    unselected: 'bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-300/80',
+    selected: 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-500/25'
+  },
+  bolmart: {
+    unselected: 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-300/80',
+    selected: 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-500/25'
+  },
+  al: {
+    unselected: 'bg-yellow-50 text-yellow-900 hover:bg-yellow-100 border border-yellow-300/80',
+    selected: 'bg-yellow-500 text-gray-900 shadow-xs ring-2 ring-yellow-400/25'
+  },
+  tamstore: {
+    unselected: 'bg-cyan-50 text-cyan-800 hover:bg-cyan-100 border border-cyan-300/80',
+    selected: 'bg-cyan-600 text-white shadow-xs ring-2 ring-cyan-500/25'
+  },
+  grandmart: {
+    unselected: 'bg-violet-50 text-violet-800 hover:bg-violet-100 border border-violet-300/80',
+    selected: 'bg-violet-600 text-white shadow-xs ring-2 ring-violet-500/25'
+  },
+  megastore: {
+    unselected: 'bg-fuchsia-50 text-fuchsia-800 hover:bg-fuchsia-100 border border-fuchsia-300/80',
+    selected: 'bg-fuchsia-600 text-white shadow-xs ring-2 ring-fuchsia-500/25'
+  }
+};
+
+const FALLBACK_PALETTES = [
+  { unselected: 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300/80', selected: 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-500/25' },
+  { unselected: 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-300/80', selected: 'bg-amber-500 text-white shadow-xs ring-2 ring-amber-400/25' },
+  { unselected: 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100 border border-indigo-300/80', selected: 'bg-indigo-600 text-white shadow-xs ring-2 ring-indigo-500/25' },
+  { unselected: 'bg-orange-50 text-orange-800 hover:bg-orange-100 border border-orange-300/80', selected: 'bg-orange-600 text-white shadow-xs ring-2 ring-orange-500/25' },
+  { unselected: 'bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-300/80', selected: 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-500/25' },
+  { unselected: 'bg-rose-50 text-rose-800 hover:bg-rose-100 border border-rose-300/80', selected: 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-500/25' },
+  { unselected: 'bg-teal-50 text-teal-800 hover:bg-teal-100 border border-teal-300/80', selected: 'bg-teal-600 text-white shadow-xs ring-2 ring-teal-500/25' },
+  { unselected: 'bg-cyan-50 text-cyan-800 hover:bg-cyan-100 border border-cyan-300/80', selected: 'bg-cyan-600 text-white shadow-xs ring-2 ring-cyan-500/25' },
+  { unselected: 'bg-violet-50 text-violet-800 hover:bg-violet-100 border border-violet-300/80', selected: 'bg-violet-600 text-white shadow-xs ring-2 ring-violet-500/25' },
+  { unselected: 'bg-fuchsia-50 text-fuchsia-800 hover:bg-fuchsia-100 border border-fuchsia-300/80', selected: 'bg-fuchsia-600 text-white shadow-xs ring-2 ring-fuchsia-500/25' },
+  { unselected: 'bg-lime-50 text-lime-900 hover:bg-lime-100 border border-lime-300/80', selected: 'bg-lime-600 text-white shadow-xs ring-2 ring-lime-500/25' },
+  { unselected: 'bg-pink-50 text-pink-800 hover:bg-pink-100 border border-pink-300/80', selected: 'bg-pink-600 text-white shadow-xs ring-2 ring-pink-500/25' },
+];
+
+const getMarketButtonStyle = (market: MarketData, index: number, isSelected: boolean) => {
+  const normId = (market.id || '').toLowerCase().trim().replace(/\s+market$/i, '').replace(/\s+/g, '');
+  const normName = (market.name || '').toLowerCase().trim().replace(/\s+market$/i, '').replace(/\s+/g, '');
+  const theme = (market.themeColor || '').toLowerCase();
+
+  const matched = 
+    MARKET_COLOR_STYLES[normId] || 
+    MARKET_COLOR_STYLES[normName] || 
+    MARKET_COLOR_STYLES[theme] || 
+    FALLBACK_PALETTES[index % FALLBACK_PALETTES.length];
+
+  return isSelected ? matched.selected : matched.unselected;
+};
+
 interface InstagramThumbnailProps {
   postUrl: string;
   index: number;
@@ -90,6 +166,14 @@ const InstagramThumbnail: React.FC<InstagramThumbnailProps> = ({ postUrl, index,
   const isInstagram = postUrl.includes('instagram.com');
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoaded(true);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!isInstagram || !containerRef.current) return;
@@ -112,6 +196,13 @@ const InstagramThumbnail: React.FC<InstagramThumbnailProps> = ({ postUrl, index,
       onClick={onClick}
       className="w-[calc(50%-5px)] sm:w-[calc(33.333%-6.7px)] shrink-0 snap-start aspect-square rounded-xl overflow-hidden cursor-pointer hover:opacity-95 transition-all bg-gray-100 relative group/ig border border-gray-100 shadow-xs hover:shadow-md hover:scale-[1.02]"
     >
+      {/* Loading Spinner */}
+      {!isLoaded && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 pointer-events-none">
+          <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+        </div>
+      )}
+
       {isInstagram ? (
         <div ref={containerRef} className="w-full h-full relative overflow-hidden bg-gray-100 flex items-center justify-center pointer-events-none">
           {/* Scaled Instagram Embed Viewport */}
@@ -130,6 +221,7 @@ const InstagramThumbnail: React.FC<InstagramThumbnailProps> = ({ postUrl, index,
                 className="w-full h-full border-none pointer-events-none"
                 scrolling="no"
                 title={`Instagram Fürsət ${index + 1}`}
+                onLoad={() => setIsLoaded(true)}
               />
             </div>
           </div>
@@ -144,8 +236,10 @@ const InstagramThumbnail: React.FC<InstagramThumbnailProps> = ({ postUrl, index,
             alt={`Fürsət ${index + 1}`} 
             className="w-full h-full object-cover group-hover/ig:scale-105 transition-transform duration-500" 
             referrerPolicy="no-referrer"
+            onLoad={() => setIsLoaded(true)}
             onError={(e) => {
               (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/174/174855.png";
+              setIsLoaded(true);
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-tr from-pink-500/10 to-transparent opacity-0 group-hover/ig:opacity-100 transition-opacity pointer-events-none" />
@@ -153,7 +247,7 @@ const InstagramThumbnail: React.FC<InstagramThumbnailProps> = ({ postUrl, index,
       )}
 
       {/* Index badge */}
-      <div className="absolute bottom-1 right-1 bg-black/50 backdrop-blur-xs text-white text-[8px] font-bold px-1.5 py-0.5 rounded-md select-none pointer-events-none">
+      <div className="absolute bottom-1 right-1 z-10 bg-black/50 backdrop-blur-xs text-white text-[8px] font-bold px-1.5 py-0.5 rounded-md select-none pointer-events-none">
         #{index + 1}
       </div>
     </div>
@@ -202,7 +296,7 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
   const currentPostUrl = posts[currentIndex] || '';
 
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 select-none">
+    <div className="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-4 select-none">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity" onClick={onClose}></div>
 
       {/* Container with Floating Navigation for larger screens */}
@@ -211,14 +305,14 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
         {posts.length > 1 && (
           <button 
             onClick={(e) => { e.stopPropagation(); handlePrev(); }}
-            className="hidden sm:flex absolute -left-12 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/95 hover:bg-white text-gray-800 shadow-xl items-center justify-center transition-all hover:scale-110 active:scale-95 z-40 border border-gray-100"
+            className="hidden sm:flex absolute -left-14 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/95 hover:bg-white text-gray-800 shadow-xl items-center justify-center transition-all hover:scale-110 active:scale-95 z-40 border border-gray-100"
             title="Əvvəlki"
           >
             <ChevronLeft className="w-5 h-5 text-gray-700" />
           </button>
         )}
 
-        <div className="relative w-full max-w-[280px] bg-white rounded-[24px] overflow-hidden shadow-2xl animate-[fadeIn_0.2s_ease-out] flex flex-col border border-gray-100">
+        <div className="relative w-full max-w-[390px] sm:max-w-[420px] bg-white rounded-[24px] overflow-hidden shadow-2xl animate-[fadeIn_0.2s_ease-out] flex flex-col border border-gray-100">
           
           {/* Header - Təmiz və minimal */}
           <div className="px-3.5 py-2.5 flex items-center justify-between shrink-0 bg-white border-b border-gray-50 select-none">
@@ -257,6 +351,7 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
               {posts.map((postUrl, idx) => {
                 const offset = idx - currentIndex;
                 const isCurrent = offset === 0;
+                const isIg = postUrl.includes('instagram.com');
                 return (
                   <div 
                     key={`${marketName}-${postUrl}-${idx}`}
@@ -266,52 +361,48 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
                       transition: 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
                   >
-                    <div className="absolute top-[-52px] left-0 w-full h-[calc(100%+110px)]">
-                      <iframe 
-                        src={getEmbedUrl(postUrl)}
-                        className={`w-full h-full border-none ${isCurrent ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                        scrolling="no"
-                        title={`Instagram Post ${idx + 1}`}
-                        onLoad={() => {
-                          if (idx === initialIndex) {
+                    {isIg ? (
+                      <div className="absolute top-[-52px] left-0 w-full h-[calc(100%+110px)]">
+                        <iframe 
+                          src={getEmbedUrl(postUrl)}
+                          className={`w-full h-full border-none ${isCurrent ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                          scrolling="no"
+                          title={`Instagram Post ${idx + 1}`}
+                          onLoad={() => {
+                            if (idx === initialIndex) {
+                              setIsInitialLoaded(true);
+                            }
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                        <img 
+                          src={postUrl} 
+                          alt={`Fürsət ${idx + 1}`} 
+                          className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer"
+                          onLoad={() => {
+                            if (idx === initialIndex) {
+                              setIsInitialLoaded(true);
+                            }
+                          }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/174/174855.png";
                             setIsInitialLoaded(true);
-                          }
-                        }}
-                      />
-                    </div>
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
 
-            {/* Discount Loading Animation */}
+            {/* Simple Loading Spinner */}
             {!isInitialLoaded && (
-              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-gradient-to-b from-rose-50/95 via-amber-50/80 to-white px-4 text-center select-none pointer-events-none">
-                <div className="relative mb-3 flex items-center justify-center">
-                  <div className="absolute w-20 h-20 rounded-full bg-gradient-to-tr from-rose-400/30 via-pink-400/20 to-amber-400/30 blur-md animate-pulse" />
-                  <div className="relative w-14 h-14 rounded-2xl bg-white shadow-lg shadow-rose-100/70 border border-rose-100 flex items-center justify-center">
-                    <div className="relative animate-[floatSlow_2s_ease-in-out_infinite]">
-                      <Tag className="w-7 h-7 text-rose-500 fill-rose-50" strokeWidth={2.2} />
-                      <span className="absolute -top-1.5 -right-2 bg-gradient-to-r from-amber-500 to-rose-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full shadow-xs flex items-center gap-0.5">
-                        %
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-1 max-w-[200px]">
-                  <h4 className="text-xs font-black text-gray-800 tracking-tight flex items-center justify-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-                    Günün Fürsəti Yüklənir
-                  </h4>
-                  <p className="text-[10px] text-gray-500 font-medium leading-tight">
-                    Xüsusi endirim postu gətirilir...
-                  </p>
-                </div>
-
-                <div className="w-24 h-1 bg-rose-100/80 rounded-full overflow-hidden mt-3 relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-rose-500 via-pink-500 to-amber-500 rounded-full animate-[dealShimmer_1.3s_infinite_linear]" />
-                </div>
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/95 select-none pointer-events-none">
+                <Loader2 className="w-7 h-7 text-gray-400 animate-spin" />
               </div>
             )}
             
@@ -357,7 +448,7 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
         {posts.length > 1 && (
           <button 
             onClick={(e) => { e.stopPropagation(); handleNext(); }}
-            className="hidden sm:flex absolute -right-12 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/95 hover:bg-white text-gray-800 shadow-xl items-center justify-center transition-all hover:scale-110 active:scale-95 z-40 border border-gray-100"
+            className="hidden sm:flex absolute -right-14 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/95 hover:bg-white text-gray-800 shadow-xl items-center justify-center transition-all hover:scale-110 active:scale-95 z-40 border border-gray-100"
             title="Növbəti"
           >
             <ChevronRight className="w-5 h-5 text-gray-700" />
@@ -1033,28 +1124,25 @@ const App: React.FC = () => {
                   {/* Hamısı (All Markets) button */}
                   <button
                     onClick={() => handleSelectMarket(null)}
-                    className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
+                    className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                       activeMarketId === null
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900'
+                        ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-500/25'
+                        : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-300/80'
                     }`}
                   >
                     Hamısı
                   </button>
 
                   {/* Market Tags */}
-                  {markets.map((market) => {
+                  {markets.map((market, index) => {
                     const isSelected = activeMarketId === market.id;
                     const displayName = market.name.replace(/\s+Market$/i, '') || market.name;
+                    const colorStyle = getMarketButtonStyle(market, index, isSelected);
                     return (
                       <button
                         key={market.id}
                         onClick={() => handleSelectMarket(market.id)}
-                        className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium transition-colors cursor-pointer ${
-                          isSelected
-                            ? 'bg-blue-600 text-white shadow-xs'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900'
-                        }`}
+                        className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${colorStyle}`}
                       >
                         {displayName}
                       </button>
@@ -1233,6 +1321,7 @@ const App: React.FC = () => {
                            const allMarketProducts = (market.catalogs && market.catalogs.length > 0)
                              ? market.catalogs.flatMap(c => c.products || [])
                              : (market.products || []);
+                           const catalogProductsCount = previewCatalog ? (previewCatalog.products?.length || 0) : allMarketProducts.length;
                            // Sort descending by discount percentage so highest discount products appear on home page
                            const previewProducts = [...allMarketProducts].sort((a, b) => getProductDiscountPercent(b) - getProductDiscountPercent(a));
                            const dateStatus = getCatalogDateStatus(previewCatalog || undefined);
@@ -1245,8 +1334,13 @@ const App: React.FC = () => {
                                        {market.logoUrl ? <img src={market.logoUrl} alt={market.name} className="w-full h-full object-contain p-1" /> : <span className={`text-${market.themeColor}-700 font-bold text-base sm:text-xl md:text-2xl`}>{market.logoPlaceholder}</span>}
                                      </div>
                                      <div className="min-w-0">
-                                       <h2 className="text-base sm:text-xl md:text-2xl font-black text-gray-800 group-hover:text-blue-600 transition-colors truncate">{market.name}</h2>
-                                       {dateStatus.label && <span className={`inline-block text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full border ${dateStatus.isActive ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-600 border-red-200"}`}>{dateStatus.label}</span>}
+                                       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                                         <h2 className="text-base sm:text-xl md:text-2xl font-black text-gray-800 group-hover:text-blue-600 transition-colors truncate">{market.name}</h2>
+                                         <span className="text-[10px] sm:text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
+                                           {catalogProductsCount} məhsul
+                                         </span>
+                                       </div>
+                                       {dateStatus.label && <span className={`inline-block text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full border mt-0.5 ${dateStatus.isActive ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-600 border-red-200"}`}>{dateStatus.label}</span>}
                                      </div>
                                   </div>
                                   <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
@@ -1295,7 +1389,7 @@ const App: React.FC = () => {
                                         </div>
                                      </div>
                                      
-                                     <div className="flex gap-2 sm:gap-2.5 overflow-x-auto scrollbar-hide pb-1 pt-0.5 snap-x snap-mandatory touch-pan-x">
+                                     <div className="flex gap-2 sm:gap-2.5 overflow-x-auto scrollbar-hide pb-1 pt-0.5 snap-x snap-mandatory overscroll-x-contain">
                                         {socialPosts.map((post, idx) => (
                                           <InstagramThumbnail 
                                             key={`${market.id}-post-${idx}`}
