@@ -1339,8 +1339,8 @@ const App: React.FC = () => {
                                        {dateStatus.label && <span className={`inline-block text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full border mt-0.5 ${dateStatus.isActive ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-600 border-red-200"}`}>{dateStatus.label}</span>}
                                      </div>
                                   </div>
-                                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                                     {isAdmin && (
+                                  {isAdmin && (
+                                     <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                                         <button 
                                           onClick={(e) => { e.stopPropagation(); setMarketToEdit(market); }}
                                           className="p-1.5 sm:p-2 bg-gray-50 text-gray-400 rounded-lg sm:rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-all border border-transparent hover:border-blue-100"
@@ -1348,15 +1348,14 @@ const App: React.FC = () => {
                                         >
                                           <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                         </button>
-                                     )}
-                                     <button onClick={() => handleSelectMarket(market.id)} className={`text-xs sm:text-sm font-bold text-${market.themeColor}-600 bg-${market.themeColor}-50 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl hover:bg-${market.themeColor}-100 transition-colors`}>Bax</button>
-                                  </div>
+                                     </div>
+                                  )}
                                </div>
                                
-                               {/* Products Preview (2 on mobile, 3 on desktop) */}
-                               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
+                               {/* Products Preview - 3 products side by side */}
+                               <div className="grid grid-cols-3 gap-2 sm:gap-2.5 mb-2.5 sm:mb-3">
                                   {(previewProducts || []).slice(0, 3).map((product, idx) => (
-                                    <div key={`${market.id}-preview-${idx}`} className={`${idx === 2 ? "hidden sm:block sm:h-full" : "block sm:h-full"}`}>
+                                    <div key={`${market.id}-preview-${idx}`} className="block h-full">
                                       <ProductCard product={product} accentColor={market.themeColor} isAdmin={isAdmin} variant="compact" onClick={() => !isAdmin && setViewProduct({ product, marketName: market.name })} onEdit={() => { setActiveMarketId(market.id); setActiveCatalogId(previewCatalog?.id || null); setProductToEdit({ product, index: idx, catalogId: previewCatalog?.id }); }} isFavorite={isFavorite(product.productName || "", market.id)} onToggleFavorite={() => toggleFavorite(product, market.id)} />
                                     </div>
                                   ))}
@@ -1434,9 +1433,10 @@ const App: React.FC = () => {
                                    title={`${market.name} kataloquna bax`}
                                  >
                                    <span className="text-xs sm:text-[13px] font-black text-gray-800 group-hover/catlink:text-blue-600 active:text-blue-700 transition-colors text-center px-1">
-                                     {market.name.toLowerCase().includes('market') ? market.name : `${market.name} market`} endirimli {catalogProductsCount} məhsul
+                                     {market.name.toLowerCase().includes('market') ? market.name : `${market.name} market`} endirimli <span className="text-sm sm:text-base font-black text-red-600 px-0.5 inline-block">{catalogProductsCount}</span> məhsul
                                    </span>
-                                   <div className="w-full py-1.5 sm:py-2 px-3 rounded-lg sm:rounded-xl bg-blue-50/80 text-blue-600 border border-blue-100/90 shadow-2xs group-hover/catlink:bg-blue-600 group-hover/catlink:text-white group-hover/catlink:border-blue-600 group-hover/catlink:shadow-xs active:scale-[0.99] transition-all flex items-center justify-center">
+                                   <div className="w-full py-1.5 sm:py-2 px-3 rounded-lg sm:rounded-xl bg-blue-50/80 text-blue-600 border border-blue-100/90 shadow-2xs group-hover/catlink:bg-blue-600 group-hover/catlink:text-white group-hover/catlink:border-blue-600 group-hover/catlink:shadow-xs active:scale-[0.99] transition-all flex items-center justify-center gap-1.5 sm:gap-2">
+                                     <span className="text-xs sm:text-[13px] font-bold">Hamısına bax</span>
                                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 group-hover/catlink:translate-y-0.5 transition-transform" strokeWidth={2.5} />
                                    </div>
                                  </button>
