@@ -194,12 +194,12 @@ const InstagramThumbnail: React.FC<InstagramThumbnailProps> = ({ postUrl, index,
   return (
     <div 
       onClick={onClick}
-      className="w-[calc(50%-5px)] sm:w-[calc(33.333%-6.7px)] shrink-0 snap-start aspect-square rounded-xl overflow-hidden cursor-pointer hover:opacity-95 transition-all bg-gray-100 relative group/ig border border-gray-100 shadow-xs hover:shadow-md hover:scale-[1.02]"
+      className="w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden cursor-pointer hover:opacity-95 transition-all bg-gray-100 relative group/ig border border-gray-100 shadow-2xs hover:shadow-xs hover:scale-[1.03] active:scale-95"
     >
       {/* Loading Spinner */}
       {!isLoaded && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 pointer-events-none">
-          <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+          <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 animate-spin" />
         </div>
       )}
 
@@ -247,7 +247,7 @@ const InstagramThumbnail: React.FC<InstagramThumbnailProps> = ({ postUrl, index,
       )}
 
       {/* Index badge */}
-      <div className="absolute bottom-1 right-1 z-10 bg-black/50 backdrop-blur-xs text-white text-[8px] font-bold px-1.5 py-0.5 rounded-md select-none pointer-events-none">
+      <div className="absolute bottom-1 right-1 z-10 bg-black/55 backdrop-blur-xs text-white text-[7px] sm:text-[8px] font-bold px-1 py-0.2 rounded select-none pointer-events-none">
         #{index + 1}
       </div>
     </div>
@@ -1184,7 +1184,7 @@ const App: React.FC = () => {
               className="flex items-center gap-2 text-xs font-bold text-pink-600 bg-pink-50 px-3 py-1.5 rounded-lg hover:bg-pink-100 transition-colors border border-pink-100 shadow-sm"
             >
               <Instagram className="w-3 h-3" />
-              Günün Fürsətləri
+              İnstagram Son Paylaşımlar
             </button>
             <button 
               onClick={() => setIsAddMarketModalOpen(true)}
@@ -1245,6 +1245,7 @@ const App: React.FC = () => {
                                     product={product}
                                     accentColor={market?.themeColor || 'gray'}
                                     isAdmin={isAdmin}
+                                    variant="compact"
                                     hasCheaperAlternative={hasCheaper}
                                     onClick={() => !isAdmin && setViewProduct({ product, marketName })}
                                     isFavorite={true}
@@ -1304,7 +1305,7 @@ const App: React.FC = () => {
                                 <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4`}>
                                 {market.filteredProducts.slice(0, visibleProductCount).map((product, index) => {
                                     const fav = isFavorite(product.productName || '', market.id);
-                                    return <ProductCard key={`${market.id}-${product.productName}-${index}`} product={product} accentColor={market.themeColor} isAdmin={isAdmin} hasCheaperAlternative={(product as any)._hasCheaper} onClick={() => !isAdmin && setViewProduct({ product, marketName: market.name })} onEdit={() => handleEditFromSearch(product, market.id)} isFavorite={fav} onToggleFavorite={() => toggleFavorite(product, market.id)} />;
+                                    return <ProductCard key={`${market.id}-${product.productName}-${index}`} product={product} accentColor={market.themeColor} isAdmin={isAdmin} variant="compact" hasCheaperAlternative={(product as any)._hasCheaper} onClick={() => !isAdmin && setViewProduct({ product, marketName: market.name })} onEdit={() => handleEditFromSearch(product, market.id)} isFavorite={fav} onToggleFavorite={() => toggleFavorite(product, market.id)} />;
                                 })}
                                 </div>
                             </div>
@@ -1327,19 +1328,14 @@ const App: React.FC = () => {
                            const dateStatus = getCatalogDateStatus(previewCatalog || undefined);
                            const socialPosts = market.instagramPosts || [];
                            return (
-                             <div key={market.id} className="bg-white rounded-xl sm:rounded-2xl p-1.5 sm:p-4 md:p-5 border-b sm:border border-gray-100/90 pb-5 sm:pb-4 transition-all duration-300 flex flex-col">
+                             <div key={market.id} className="bg-white rounded-xl sm:rounded-2xl p-1.5 sm:p-4 md:p-5 border-b sm:border border-gray-100/90 pb-5 sm:pb-4 transition-all duration-300 flex flex-col h-full">
                                <div className="flex items-center justify-between mb-2.5 sm:mb-4 px-0.5">
                                   <div className="flex items-center gap-2 sm:gap-3 cursor-pointer group min-w-0" onClick={() => setActiveMarketId(market.id)}>
                                      <div className={`w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-xl sm:rounded-2xl bg-white border border-gray-100 shadow-xs flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform`}>
                                        {market.logoUrl ? <img src={market.logoUrl} alt={market.name} className="w-full h-full object-contain p-1" /> : <span className={`text-${market.themeColor}-700 font-bold text-base sm:text-xl md:text-2xl`}>{market.logoPlaceholder}</span>}
                                      </div>
                                      <div className="min-w-0">
-                                       <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                                         <h2 className="text-base sm:text-xl md:text-2xl font-black text-gray-800 group-hover:text-blue-600 transition-colors truncate">{market.name}</h2>
-                                         <span className="text-[10px] sm:text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
-                                           {catalogProductsCount} məhsul
-                                         </span>
-                                       </div>
+                                       <h2 className="text-base sm:text-xl md:text-2xl font-black text-gray-800 group-hover:text-blue-600 transition-colors truncate">{market.name}</h2>
                                        {dateStatus.label && <span className={`inline-block text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full border mt-0.5 ${dateStatus.isActive ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-600 border-red-200"}`}>{dateStatus.label}</span>}
                                      </div>
                                   </div>
@@ -1366,31 +1362,48 @@ const App: React.FC = () => {
                                   ))}
                                </div>
 
-                               {/* Instagram/Social Preview (2 visible at once on mobile, horizontally scrollable) */}
+                               {/* Instagram/Social Preview - 4 small squares: 1st Instagram icon, other 3 latest posts */}
                                {socialPosts.length > 0 && (
-                                  <div className="mt-auto pt-3 sm:pt-3.5 border-t border-gray-100 px-0.5">
-                                     <div className="flex items-center justify-between mb-2 px-0.5">
+                                  <div className="pt-2.5 sm:pt-3 border-t border-gray-100 px-0.5">
+                                     <div className="flex items-center justify-between mb-1.5 sm:mb-2 px-0.5">
                                         <div className="flex items-center gap-1.5 sm:gap-2">
-                                          <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-600 shrink-0" />
-                                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Günün Fürsətləri</span>
-                                          {socialPosts.length > 2 && (
+                                          <Instagram className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-600 shrink-0" />
+                                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">İnstagram Son Paylaşımlar</span>
+                                          {socialPosts.length > 3 && (
                                             <span className="text-[9px] font-bold text-pink-600 bg-pink-50 px-1.5 py-0.2 rounded-full border border-pink-100">
                                               {socialPosts.length}
                                             </span>
                                           )}
                                         </div>
                                         <div className="flex items-center gap-1">
-                                          {socialPosts.length > 2 && (
-                                            <span className="text-[9px] text-gray-400 font-medium sm:hidden flex items-center gap-0.5 select-none">
-                                              Sürüşdürün <ChevronRight className="w-2.5 h-2.5" />
-                                            </span>
+                                          {socialPosts.length > 3 ? (
+                                            <button 
+                                              type="button"
+                                              onClick={() => setInstagramViewerData({ posts: socialPosts, name: market.name, initialIndex: 0 })}
+                                              className="text-[9px] sm:text-[10px] text-pink-600 hover:text-pink-700 font-bold flex items-center gap-0.5 transition-colors cursor-pointer"
+                                            >
+                                              Hamısı ({socialPosts.length}) <ChevronRight className="w-2.5 h-2.5" />
+                                            </button>
+                                          ) : (
+                                            <Instagram className="w-3.5 h-3.5 text-pink-400" />
                                           )}
-                                          <Instagram className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-400" />
                                         </div>
                                      </div>
                                      
-                                     <div className="flex gap-2 sm:gap-2.5 overflow-x-auto scrollbar-hide pb-1 pt-0.5 snap-x snap-mandatory overscroll-x-contain">
-                                        {socialPosts.map((post, idx) => (
+                                     <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+                                        {/* 1st Square: Instagram Icon Box */}
+                                        <div 
+                                          onClick={() => setInstagramViewerData({ posts: socialPosts, name: market.name, initialIndex: 0 })}
+                                          className="w-full aspect-square rounded-lg sm:rounded-xl bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] flex flex-col items-center justify-center cursor-pointer shadow-2xs hover:shadow-xs hover:scale-[1.03] active:scale-95 transition-all text-white group select-none relative overflow-hidden"
+                                          title={`${market.name} İnstagram Fürsətləri`}
+                                        >
+                                          <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors" />
+                                          <Instagram className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-xs group-hover:scale-110 transition-transform" />
+                                          <span className="text-[7.5px] sm:text-[9px] font-extrabold text-white/95 tracking-tight mt-1 leading-none uppercase">İnstagram</span>
+                                        </div>
+
+                                        {/* 2nd, 3rd, 4th Squares: Latest 3 Posts */}
+                                        {socialPosts.slice(0, 3).map((post, idx) => (
                                           <InstagramThumbnail 
                                             key={`${market.id}-post-${idx}`}
                                             postUrl={post}
@@ -1398,9 +1411,36 @@ const App: React.FC = () => {
                                             onClick={() => setInstagramViewerData({ posts: socialPosts, name: market.name, initialIndex: idx })}
                                           />
                                         ))}
+
+                                        {/* Placeholder squares if market has fewer than 3 posts */}
+                                        {Array.from({ length: Math.max(0, 3 - socialPosts.length) }).map((_, i) => (
+                                          <div 
+                                            key={`${market.id}-empty-${i}`} 
+                                            className="w-full aspect-square rounded-lg sm:rounded-xl border border-dashed border-gray-200/80 bg-gray-50/50 flex flex-col items-center justify-center text-gray-300 pointer-events-none select-none"
+                                          >
+                                            <Instagram className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-200" />
+                                          </div>
+                                        ))}
                                      </div>
                                   </div>
                                )}
+
+                               {/* Link under daily offers to open catalog: "[Market Name] endirimli [count] məhsul" with full-width button underneath */}
+                               <div className="mt-auto pt-2.5 sm:pt-3 border-t border-gray-100 px-0.5">
+                                 <button
+                                   type="button"
+                                   onClick={() => handleSelectMarket(market.id)}
+                                   className="w-full flex flex-col items-center justify-center gap-1.5 pt-1 group/catlink cursor-pointer select-none"
+                                   title={`${market.name} kataloquna bax`}
+                                 >
+                                   <span className="text-xs sm:text-[13px] font-black text-gray-800 group-hover/catlink:text-blue-600 active:text-blue-700 transition-colors text-center px-1">
+                                     {market.name.toLowerCase().includes('market') ? market.name : `${market.name} market`} endirimli {catalogProductsCount} məhsul
+                                   </span>
+                                   <div className="w-full py-1.5 sm:py-2 px-3 rounded-lg sm:rounded-xl bg-blue-50/80 text-blue-600 border border-blue-100/90 shadow-2xs group-hover/catlink:bg-blue-600 group-hover/catlink:text-white group-hover/catlink:border-blue-600 group-hover/catlink:shadow-xs active:scale-[0.99] transition-all flex items-center justify-center">
+                                     <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 group-hover/catlink:translate-y-0.5 transition-transform" strokeWidth={2.5} />
+                                   </div>
+                                 </button>
+                               </div>
                              </div>
                            );
                          })}
@@ -1510,6 +1550,7 @@ const App: React.FC = () => {
                                       product={product} 
                                       accentColor={mktAccent} 
                                       isAdmin={isAdmin} 
+                                      variant="compact"
                                       hasCheaperAlternative={checkForCheaperAlternative(product, mkt.id)} 
                                       onClick={() => !isAdmin && setViewProduct({ product, marketName: mkt.name })} 
                                       onEdit={() => { setActiveMarketId(mkt.id); setProductToEdit({ product, index, catalogId: selectedCatId || undefined }); }} 

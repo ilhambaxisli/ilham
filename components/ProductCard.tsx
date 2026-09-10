@@ -59,7 +59,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   id,
   onEdit, 
   onClick,
-  variant = 'default',
+  variant = 'compact',
   isFavorite,
   onToggleFavorite
 }) => {
@@ -75,11 +75,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
       id={id}
       onClick={onClick}
       className={`
-      bg-white rounded-xl overflow-hidden transition-all duration-300 flex flex-col ${isCompact ? 'h-auto' : 'h-full'} group relative
-      ${isCompact 
-        ? `shadow-none border border-${accentColor}-100 cursor-pointer` 
-        : `shadow-sm hover:shadow-lg border-2 border-${accentColor}-100 hover:border-${accentColor}-300`
-      }
+      bg-white rounded-xl overflow-hidden transition-all duration-300 flex flex-col h-full group relative cursor-pointer
+      shadow-2xs hover:shadow-xs border border-gray-100 hover:border-${accentColor}-200
       ${isHighlighted ? 'ring-4 ring-yellow-400 ring-offset-2 scale-105 z-10' : ''}
     `}>
       
@@ -89,17 +86,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
             e.stopPropagation();
             onToggleFavorite();
           }}
-          className={`absolute z-30 p-2 transition-colors
-            ${isCompact ? 'top-0 right-0' : 'top-1 right-1'}
-            ${isFavorite ? 'text-red-500' : 'text-gray-300 hover:text-red-400'}
-          `}
+          className="absolute z-30 p-1.5 sm:p-2 transition-colors top-0 right-0 text-gray-300 hover:text-red-400"
         >
           <Heart 
-            className={`
-              ${isCompact ? "w-5 h-5" : "w-7 h-7"} 
-              ${isFavorite ? "fill-current" : ""} 
-              drop-shadow-sm
-            `} 
+            className={`w-4 h-4 sm:w-5 sm:h-5 ${isFavorite ? "fill-red-500 text-red-500" : ""} drop-shadow-xs`} 
             strokeWidth={2} 
           />
         </button>
@@ -111,11 +101,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
             e.stopPropagation();
             if (onEdit) onEdit();
           }}
-          className={`absolute z-20 bg-white/90 rounded-full shadow-sm text-gray-500 hover:text-blue-600 border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity
-            ${isCompact ? 'top-1 left-1 p-1' : 'top-2 left-2 p-1.5'}
-          `}
+          className="absolute z-20 bg-white/90 rounded-full shadow-xs text-gray-500 hover:text-blue-600 border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity top-1 left-1 p-1"
         >
-          <Edit2 className={isCompact ? "w-3 h-3" : "w-3.5 h-3.5"} />
+          <Edit2 className="w-3 h-3" />
         </button>
       )}
 
@@ -124,66 +112,57 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <img 
             src={imageUrl} 
             alt={product.productName}
-            className="w-full h-full object-cover object-center group-hover:scale-110 transition-transform duration-500"
+            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
             onError={() => setImageError(true)}
             loading="lazy"
           />
         ) : (
           <div className={`w-full h-full flex items-center justify-center bg-${accentColor}-50 flex-col gap-1 text-${accentColor}-300`}>
-            {getCategoryIcon(product.category, isCompact)}
+            {getCategoryIcon(product.category, true)}
           </div>
         )}
         
         {product.discountPercentage && (
            <div className={`
-             absolute bg-${accentColor}-500 text-white font-bold rounded-br-lg shadow-sm flex items-center z-10
-             ${isCompact 
-                ? 'top-0 left-0 text-[8px] px-1.5 py-0.5' 
-                : 'top-0 left-0 text-xs px-2 py-1'
-             }
+             absolute top-0 left-0 bg-${accentColor}-500 text-white font-bold rounded-br-lg shadow-xs flex items-center z-10 text-[8px] sm:text-[9px] px-1.5 py-0.5
            `}>
              {product.discountPercentage}
            </div>
         )}
       </div>
 
-      <div className={`${isCompact ? 'p-2 pt-1.5' : 'p-3'} flex-1 flex flex-col`}>
-        <div className={isCompact ? 'mb-0.5' : 'mb-1'}>
-           {!isCompact && (
-             <span className={`text-[9px] font-bold text-${accentColor}-600 uppercase tracking-wider bg-${accentColor}-50 px-1.5 py-0.5 rounded block w-fit mb-1.5`}>
-               {product.category}
-             </span>
-           )}
-           <h3 className={`font-bold text-gray-800 line-clamp-2 ${isCompact ? 'text-[10px] sm:text-[11px] leading-snug' : 'text-xs h-8 leading-tight'}`} title={product.productName}>
+      <div className="p-2 pt-1.5 sm:p-2.5 sm:pt-2 flex-1 flex flex-col justify-between">
+        <div>
+           <h3 className="font-bold text-gray-800 line-clamp-2 text-[10px] sm:text-[11.5px] leading-snug" title={product.productName}>
             {product.productName}
           </h3>
+          
+          {/* Expiry Date Display if present */}
+          {product.expiryDate && (
+             <div className="flex items-center gap-1 text-[8.5px] text-gray-400 mt-1">
+                <Clock className="w-2.5 h-2.5 text-amber-500 shrink-0" />
+                <span className="truncate">Bitmə: {new Date(product.expiryDate).toLocaleDateString('az-AZ')}</span>
+             </div>
+          )}
+          
+          {hasCheaperAlternative && (
+            <div className="mt-1">
+              <div className="inline-flex items-center gap-1 bg-green-100 border border-green-200 text-green-700 px-1.5 py-0.5 rounded text-[8.5px] sm:text-[9.5px] font-bold">
+                <TrendingDown className="w-2.5 h-2.5" />
+                Daha Ucuzu Var
+              </div>
+            </div>
+          )}
         </div>
         
-        {/* Expiry Date Display */}
-        {product.expiryDate && !isCompact && (
-           <div className="flex items-center gap-1 text-[9px] text-gray-400 mt-1">
-              <Clock className="w-3 h-3 text-amber-500" />
-              <span>Bitmə: {new Date(product.expiryDate).toLocaleDateString('az-AZ')}</span>
-           </div>
-        )}
-        
-        {hasCheaperAlternative && !isCompact && (
-          <div className="mt-1">
-            <div className="inline-flex items-center gap-1 bg-green-100 border border-green-200 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-bold">
-              <TrendingDown className="w-3 h-3" />
-              Daha Ucuzu Var
-            </div>
-          </div>
-        )}
-        
-        <div className={`${isCompact ? 'mt-1 pt-1' : 'mt-auto pt-2'} border-t border-${accentColor}-50 flex items-end justify-between`}>
+        <div className="mt-1.5 pt-1 border-t border-gray-100 flex items-end justify-between">
           <div className="flex flex-col">
             {product.oldPrice && product.oldPrice !== '---' ? (
-              <span className={`text-gray-400 line-through ${isCompact ? 'text-[9px] leading-none mb-0.5' : 'text-[10px]'}`}>
+              <span className="text-gray-400 line-through text-[8.5px] sm:text-[9.5px] leading-none mb-0.5">
                 {product.oldPrice}
               </span>
             ) : null}
-            <span className={`font-black text-${accentColor}-600 leading-none ${isCompact ? 'text-sm' : 'text-base'}`}>
+            <span className={`font-black text-${accentColor}-600 leading-none text-xs sm:text-sm`}>
               {product.newPrice} <span className="text-[0.7em]">₼</span>
             </span>
           </div>

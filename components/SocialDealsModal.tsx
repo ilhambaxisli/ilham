@@ -73,8 +73,8 @@ const SocialDealsModal: React.FC<SocialDealsModalProps> = ({ isOpen, onClose, ma
           <div className="bg-white px-6 pt-5 pb-6 max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center mb-6 border-b pb-3 shrink-0">
               <h3 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-pink-600" />
-                Günün Fürsətləri İdarəçisi
+                <Instagram className="w-5 h-5 text-pink-600" />
+                İnstagram Son Paylaşımlar İdarəçisi
               </h3>
               <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
                 <X className="h-6 w-6" />
