@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Header from './components/Header';
 import ProductCard from './components/ProductCard';
 import GroupedProductCard from './components/GroupedProductCard';
@@ -1090,6 +1090,111 @@ const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // --- MOBILE BROWSER & HARDWARE BACK BUTTON NAVIGATION SUPPORT ---
+  const currentDepthRef = useRef<number>(0);
+  const isInternalNavRef = useRef<boolean>(false);
+
+  // Check if any modal is currently open
+  const hasOpenModal = Boolean(
+    viewProduct ||
+    instagramViewerData ||
+    isScannerOpen ||
+    isLoginModalOpen ||
+    isBannerModalOpen ||
+    isAddMarketModalOpen ||
+    isSocialDealsModalOpen ||
+    marketToEdit ||
+    productToEdit ||
+    isDatabaseModalOpen
+  );
+
+  // Check if any subpage view is active (market, favorites, cheaper comparison, or search)
+  const hasActiveSubpage = Boolean(
+    activeMarketId !== null ||
+    showFavorites ||
+    showCheaperOnly ||
+    searchQuery.trim() !== ''
+  );
+
+  // Target history depth:
+  // 0: Root Home page
+  // 1: Subpage (market / favorites / comparison / search) OR modal opened directly from home
+  // 2: Modal opened on top of a subpage
+  const targetDepth = (hasOpenModal && hasActiveSubpage) ? 2 : (hasOpenModal || hasActiveSubpage) ? 1 : 0;
+
+  const closeAllModals = useCallback(() => {
+    setViewProduct(null);
+    setInstagramViewerData(null);
+    setIsScannerOpen(false);
+    setIsLoginModalOpen(false);
+    setIsBannerModalOpen(false);
+    setIsAddMarketModalOpen(false);
+    setIsSocialDealsModalOpen(false);
+    setMarketToEdit(null);
+    setProductToEdit(null);
+    setIsDatabaseModalOpen(false);
+  }, []);
+
+  const hasOpenModalRef = useRef(hasOpenModal);
+  hasOpenModalRef.current = hasOpenModal;
+
+  const hasActiveSubpageRef = useRef(hasActiveSubpage);
+  hasActiveSubpageRef.current = hasActiveSubpage;
+
+  const handleResetAppRef = useRef(handleResetApp);
+  handleResetAppRef.current = handleResetApp;
+
+  const closeAllModalsRef = useRef(closeAllModals);
+  closeAllModalsRef.current = closeAllModals;
+
+  // Initialize and listen for popstate (mobile hardware back button / swipe back gesture)
+  useEffect(() => {
+    if (!window.history.state || typeof window.history.state.depth !== 'number') {
+      window.history.replaceState({ depth: 0 }, '');
+      currentDepthRef.current = 0;
+    } else {
+      currentDepthRef.current = window.history.state.depth;
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      // If navigation was triggered programmatically by in-app button, sync depth and exit
+      if (isInternalNavRef.current) {
+        isInternalNavRef.current = false;
+        currentDepthRef.current = typeof event.state?.depth === 'number' ? event.state.depth : 0;
+        return;
+      }
+
+      const newDepth = typeof event.state?.depth === 'number' ? event.state.depth : 0;
+      const prevDepth = currentDepthRef.current;
+      currentDepthRef.current = newDepth;
+
+      // When user presses phone back button (popped from higher depth to lower depth)
+      if (newDepth < prevDepth) {
+        if (hasOpenModalRef.current) {
+          closeAllModalsRef.current();
+        } else if (hasActiveSubpageRef.current) {
+          handleResetAppRef.current();
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Synchronize browser history stack with app target depth
+  useEffect(() => {
+    if (targetDepth > currentDepthRef.current) {
+      window.history.pushState({ depth: targetDepth }, '');
+      currentDepthRef.current = targetDepth;
+    } else if (targetDepth < currentDepthRef.current) {
+      const diff = currentDepthRef.current - targetDepth;
+      isInternalNavRef.current = true;
+      currentDepthRef.current = targetDepth;
+      window.history.go(-diff);
+    }
+  }, [targetDepth]);
+
   return (
     <>
       {isLoading && <CartLoading />}
@@ -1469,6 +1574,15 @@ const App: React.FC = () => {
                               {/* Compact Market Header (Identical compact style as home page, minimal padding) */}
                               <div className="bg-white p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-gray-100 shadow-xs mb-2.5 sm:mb-3 flex items-center justify-between">
                                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectMarket(null)}
+                                    className="p-1.5 sm:p-2 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 text-gray-700 rounded-lg sm:rounded-xl border border-gray-200 transition-all flex items-center gap-1 shrink-0 active:scale-95"
+                                    title="Ana səhifəyə qayıt"
+                                  >
+                                    <ArrowLeft className="w-4 h-4 text-gray-700" strokeWidth={2.5} />
+                                    <span className="hidden sm:inline text-xs font-bold text-gray-700">Ana Səhifə</span>
+                                  </button>
                                   <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white border border-gray-100 shadow-xs flex items-center justify-center overflow-hidden shrink-0`}>
                                     {mkt.logoUrl ? (
                                       <img src={mkt.logoUrl} alt={mkt.name} className="w-full h-full object-contain p-1" />
