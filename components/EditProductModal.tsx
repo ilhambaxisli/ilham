@@ -14,7 +14,15 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, onClose, pr
   const [formData, setFormData] = useState<DiscountProduct>(product);
 
   useEffect(() => {
-    setFormData(product);
+    if (product) {
+      setFormData({
+        ...product,
+        productName: String(product.productName || ''),
+        oldPrice: product.oldPrice !== undefined && product.oldPrice !== null ? String(product.oldPrice) : '',
+        newPrice: product.newPrice !== undefined && product.newPrice !== null ? String(product.newPrice) : '',
+        discountPercentage: product.discountPercentage !== undefined && product.discountPercentage !== null ? String(product.discountPercentage) : '',
+      });
+    }
   }, [product, isOpen]);
 
   if (!isOpen) return null;

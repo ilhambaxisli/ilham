@@ -500,14 +500,21 @@ const App: React.FC = () => {
   const [visibleDetailCount, setVisibleDetailCount] = useState(24);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
+  const parsePriceNumber = (val: any): number => {
+    if (val === null || val === undefined) return NaN;
+    if (typeof val === 'number') return isNaN(val) ? NaN : val;
+    const str = String(val).replace(',', '.').replace(/[^0-9.]/g, '');
+    return parseFloat(str);
+  };
+
   const getProductDiscountPercent = (p: DiscountProduct): number => {
     if (p.discountPercentage) {
-      const cleaned = p.discountPercentage.replace(/[^0-9.]/g, '');
+      const cleaned = String(p.discountPercentage).replace(/[^0-9.]/g, '');
       const num = parseFloat(cleaned);
       if (!isNaN(num) && num > 0) return num;
     }
-    const oldP = parseFloat(p.oldPrice?.replace(',', '.').replace(/[^0-9.]/g, '') || '');
-    const newP = parseFloat(p.newPrice?.replace(',', '.').replace(/[^0-9.]/g, '') || '');
+    const oldP = parsePriceNumber(p.oldPrice);
+    const newP = parsePriceNumber(p.newPrice);
     if (!isNaN(oldP) && !isNaN(newP) && oldP > newP && oldP > 0) {
       return Math.round(((oldP - newP) / oldP) * 100);
     }
@@ -751,8 +758,7 @@ const App: React.FC = () => {
         const prods = m.catalogs ? m.catalogs.flatMap(c => c.products) : (m.products || []);
         prods.forEach(p => {
             const name = (p.productName || '').trim().toLowerCase();
-            const priceStr = (p.newPrice || '').replace(/[^0-9.]/g, '');
-            const price = parseFloat(priceStr);
+            const price = parsePriceNumber(p.newPrice);
             if (!isNaN(price) && name) {
                 if (!index.has(name)) index.set(name, []);
                 index.get(name)!.push({ price, marketId: m.id });
@@ -764,8 +770,7 @@ const App: React.FC = () => {
 
   const checkForCheaperAlternative = (currentProduct: DiscountProduct, currentMarketId: string): boolean => {
     const name = (currentProduct.productName || '').trim().toLowerCase();
-    const currentPriceStr = (currentProduct.newPrice || '').replace(/[^0-9.]/g, '');
-    const currentPrice = parseFloat(currentPriceStr);
+    const currentPrice = parsePriceNumber(currentProduct.newPrice);
     if (isNaN(currentPrice) || !name) return false;
     const alternatives = productPriceIndex.get(name);
     if (!alternatives) return false;
@@ -798,11 +803,10 @@ const App: React.FC = () => {
              if (debouncedSearchQuery.length > 0 && !pName.includes(debouncedSearchQuery.toLowerCase())) return;
              const normalizedName = (p.productName || '').trim().toLowerCase();
              if (!normalizedName) return;
-             const priceStr = (p.newPrice || '').replace(/[^0-9.]/g, '');
-             const priceVal = parseFloat(priceStr);
+             const priceVal = parsePriceNumber(p.newPrice);
              if (isNaN(priceVal)) return;
              if (debouncedMaxPrice) {
-                 const limit = parseFloat(debouncedMaxPrice);
+                 const limit = parsePriceNumber(debouncedMaxPrice);
                  if (!isNaN(limit) && priceVal > limit) return;
              }
              if (!groups.has(normalizedName)) {
@@ -819,7 +823,7 @@ const App: React.FC = () => {
                  marketId: market.id,
                  marketName: market.name,
                  price: priceVal,
-                 originalPriceStr: p.newPrice,
+                 originalPriceStr: String(p.newPrice ?? ''),
                  logoUrl: market.logoUrl,
                  logoPlaceholder: market.logoPlaceholder,
                  themeColor: market.themeColor
@@ -866,9 +870,8 @@ const App: React.FC = () => {
             const pName = (product.productName || '').toLowerCase();
             if (debouncedSearchQuery.length > 0 && !pName.includes(debouncedSearchQuery.toLowerCase())) return false;
             if (debouncedMaxPrice) {
-                const priceStr = (product.newPrice || '').replace(/[^0-9.]/g, '');
-                const price = parseFloat(priceStr);
-                const limit = parseFloat(debouncedMaxPrice);
+                const price = parsePriceNumber(product.newPrice);
+                const limit = parsePriceNumber(debouncedMaxPrice);
                 if (!isNaN(price) && !isNaN(limit) && price > limit) return false;
             }
             return true;

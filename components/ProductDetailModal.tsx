@@ -28,13 +28,19 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 }) => {
   if (!isOpen || !product) return null;
 
+  const parsePriceNumber = (val: any): number => {
+    if (val === null || val === undefined) return NaN;
+    if (typeof val === 'number') return isNaN(val) ? NaN : val;
+    const str = String(val).replace(',', '.').replace(/[^0-9.]/g, '');
+    return parseFloat(str);
+  };
+
   // --- BEST PRICE CHECK LOGIC ---
   const isBestPrice = useMemo(() => {
     if (!product) return false;
     const normalize = (s: string) => (s || '').trim().toLowerCase();
     const sourceName = normalize(product.productName);
-    const priceStr = (product.newPrice || '').replace(/[^0-9.]/g, '');
-    const currentPrice = parseFloat(priceStr);
+    const currentPrice = parsePriceNumber(product.newPrice);
 
     for (const market of allMarkets) {
         const marketProducts = market.catalogs && market.catalogs.length > 0
@@ -43,9 +49,8 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         
         for (const p of marketProducts) {
              if (normalize(p.productName) === sourceName) {
-                 const pPriceStr = (p.newPrice || '').replace(/[^0-9.]/g, '');
-                 const pPrice = parseFloat(pPriceStr);
-                 if (pPrice < currentPrice) return false; 
+                 const pPrice = parsePriceNumber(p.newPrice);
+                 if (!isNaN(pPrice) && !isNaN(currentPrice) && pPrice < currentPrice) return false; 
              }
         }
     }
@@ -58,8 +63,8 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
     const normalize = (s: string) => (s || '').trim().toLowerCase();
     const sourceName = normalize(product.productName);
-    const priceStr = (product.newPrice || '').replace(/[^0-9.]/g, '');
-    const currentPrice = parseFloat(priceStr);
+    const currentPrice = parsePriceNumber(product.newPrice);
+    if (isNaN(currentPrice)) return [];
 
     const alternatives: { 
         marketId: string, 
@@ -83,8 +88,7 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       const match = marketProducts.find(p => normalize(p.productName) === sourceName);
       
       if (match) {
-        const matchPriceStr = (match.newPrice || '').replace(/[^0-9.]/g, '');
-        const matchPrice = parseFloat(matchPriceStr);
+        const matchPrice = parsePriceNumber(match.newPrice);
         if (!isNaN(matchPrice)) {
             const diff = currentPrice - matchPrice;
             // Only show cheaper alternatives
