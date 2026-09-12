@@ -159,21 +159,48 @@ const getMarketButtonStyle = (market: MarketData, index: number, isSelected: boo
 interface InstagramThumbnailProps {
   postUrl: string;
   index: number;
+  marketIndex?: number;
   onClick: () => void;
 }
 
-const InstagramThumbnail: React.FC<InstagramThumbnailProps> = ({ postUrl, index, onClick }) => {
+const InstagramThumbnail: React.FC<InstagramThumbnailProps> = ({ postUrl, index, marketIndex = 0, onClick }) => {
   const isInstagram = postUrl.includes('instagram.com');
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
   const [isLoaded, setIsLoaded] = useState(false);
+  // İlk 2 marketin ilk 2 postu dərhal, digərləri isə ekrana yaxınlaşdıqda yüklənsin
+  const isPriority = marketIndex < 2 && index < 2;
+  const [isVisible, setIsVisible] = useState(isPriority);
 
   useEffect(() => {
+    if (isVisible) return;
+    const el = containerRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '300px' } // ekrana 300px qalmış yükləməyə başla
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isVisible]);
+
+  useEffect(() => {
+    if (!isVisible) return;
     const timer = setTimeout(() => {
       setIsLoaded(true);
-    }, 4000);
+    }, 3500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isVisible]);
 
   useEffect(() => {
     if (!isInstagram || !containerRef.current) return;
@@ -193,56 +220,65 @@ const InstagramThumbnail: React.FC<InstagramThumbnailProps> = ({ postUrl, index,
 
   return (
     <div 
+      ref={containerRef}
       onClick={onClick}
       className="w-full aspect-square rounded-lg sm:rounded-xl overflow-hidden cursor-pointer hover:opacity-95 transition-all bg-gray-100 relative group/ig border border-gray-100 shadow-2xs hover:shadow-xs hover:scale-[1.03] active:scale-95"
     >
       {/* Loading Spinner */}
       {!isLoaded && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-100 pointer-events-none">
-          <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 animate-spin" />
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-50 pointer-events-none">
+          <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-400 animate-spin" />
         </div>
       )}
 
-      {isInstagram ? (
-        <div ref={containerRef} className="w-full h-full relative overflow-hidden bg-gray-100 flex items-center justify-center pointer-events-none">
-          {/* Scaled Instagram Embed Viewport */}
-          <div 
-            className="absolute top-0 left-0 origin-top-left pointer-events-none"
-            style={{
-              width: '320px',
-              height: '320px',
-              transform: `scale(${scale})`,
-            }}
-          >
-            {/* Shifted so top Instagram header (52px) is hidden, framing the square image */}
-            <div className="absolute top-[-52px] left-0 w-[320px] h-[430px]">
-              <iframe 
-                src={getEmbedUrl(postUrl)}
-                className="w-full h-full border-none pointer-events-none"
-                scrolling="no"
-                title={`Instagram Fürsət ${index + 1}`}
-                onLoad={() => setIsLoaded(true)}
-              />
+      {isVisible ? (
+        isInstagram ? (
+          <div className="w-full h-full relative overflow-hidden bg-gray-100 flex items-center justify-center pointer-events-none">
+            {/* Scaled Instagram Embed Viewport */}
+            <div 
+              className="absolute top-0 left-0 origin-top-left pointer-events-none"
+              style={{
+                width: '320px',
+                height: '320px',
+                transform: `scale(${scale})`,
+              }}
+            >
+              {/* Shifted so top Instagram header (52px) is hidden, framing the square image */}
+              <div className="absolute top-[-52px] left-0 w-[320px] h-[430px]">
+                <iframe 
+                  src={getEmbedUrl(postUrl)}
+                  loading={isPriority ? "eager" : "lazy"}
+                  className="w-full h-full border-none pointer-events-none"
+                  scrolling="no"
+                  title={`Instagram Fürsət ${index + 1}`}
+                  onLoad={() => setIsLoaded(true)}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Clickable overlay & hover effect */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-pink-500/10 via-transparent to-transparent opacity-0 group-hover/ig:opacity-100 transition-opacity pointer-events-none" />
-        </div>
+            {/* Clickable overlay & hover effect */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-pink-500/10 via-transparent to-transparent opacity-0 group-hover/ig:opacity-100 transition-opacity pointer-events-none" />
+          </div>
+        ) : (
+          <div className="w-full h-full relative">
+            <img 
+              src={postUrl} 
+              alt={`Fürsət ${index + 1}`} 
+              loading="lazy"
+              className="w-full h-full object-cover group-hover/ig:scale-105 transition-transform duration-500" 
+              referrerPolicy="no-referrer"
+              onLoad={() => setIsLoaded(true)}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/174/174855.png";
+                setIsLoaded(true);
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-tr from-pink-500/10 to-transparent opacity-0 group-hover/ig:opacity-100 transition-opacity pointer-events-none" />
+          </div>
+        )
       ) : (
-        <div className="w-full h-full relative">
-          <img 
-            src={postUrl} 
-            alt={`Fürsət ${index + 1}`} 
-            className="w-full h-full object-cover group-hover/ig:scale-105 transition-transform duration-500" 
-            referrerPolicy="no-referrer"
-            onLoad={() => setIsLoaded(true)}
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/174/174855.png";
-              setIsLoaded(true);
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-tr from-pink-500/10 to-transparent opacity-0 group-hover/ig:opacity-100 transition-opacity pointer-events-none" />
+        <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300">
+          <Instagram className="w-4 h-4 text-gray-300" />
         </div>
       )}
 
@@ -351,6 +387,8 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
               {posts.map((postUrl, idx) => {
                 const offset = idx - currentIndex;
                 const isCurrent = offset === 0;
+                // Only mount iframe for active slide and adjacent slides (±1) to prevent lag and rate limits
+                const shouldRenderContent = Math.abs(offset) <= 1;
                 const isIg = postUrl.includes('instagram.com');
                 return (
                   <div 
@@ -361,37 +399,44 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
                       transition: 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
                   >
-                    {isIg ? (
-                      <div className="absolute top-[-52px] left-0 w-full h-[calc(100%+110px)]">
-                        <iframe 
-                          src={getEmbedUrl(postUrl)}
-                          className={`w-full h-full border-none ${isCurrent ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                          scrolling="no"
-                          title={`Instagram Post ${idx + 1}`}
-                          onLoad={() => {
-                            if (idx === initialIndex) {
+                    {shouldRenderContent ? (
+                      isIg ? (
+                        <div className="absolute top-[-52px] left-0 w-full h-[calc(100%+110px)]">
+                          <iframe 
+                            src={getEmbedUrl(postUrl)}
+                            className={`w-full h-full border-none ${isCurrent ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                            scrolling="no"
+                            loading={isCurrent ? "eager" : "lazy"}
+                            title={`Instagram Post ${idx + 1}`}
+                            onLoad={() => {
+                              if (idx === currentIndex || idx === initialIndex) {
+                                setIsInitialLoaded(true);
+                              }
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                          <img 
+                            src={postUrl} 
+                            alt={`Fürsət ${idx + 1}`} 
+                            className="w-full h-full object-cover" 
+                            referrerPolicy="no-referrer"
+                            onLoad={() => {
+                              if (idx === currentIndex || idx === initialIndex) {
+                                setIsInitialLoaded(true);
+                              }
+                            }}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/174/174855.png";
                               setIsInitialLoaded(true);
-                            }
-                          }}
-                        />
-                      </div>
+                            }}
+                          />
+                        </div>
+                      )
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                        <img 
-                          src={postUrl} 
-                          alt={`Fürsət ${idx + 1}`} 
-                          className="w-full h-full object-cover" 
-                          referrerPolicy="no-referrer"
-                          onLoad={() => {
-                            if (idx === initialIndex) {
-                              setIsInitialLoaded(true);
-                            }
-                          }}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/174/174855.png";
-                            setIsInitialLoaded(true);
-                          }}
-                        />
+                      <div className="w-full h-full bg-gray-50 flex items-center justify-center">
+                        <Instagram className="w-6 h-6 text-gray-200" />
                       </div>
                     )}
                   </div>
@@ -1425,7 +1470,7 @@ const App: React.FC = () => {
                   <>
                     {activeMarketId === null ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 animate-[fadeIn_0.5s_ease-out]">
-                         {markets.map((market) => {
+                         {markets.map((market, marketIdx) => {
                            const previewCatalog = market.catalogs && market.catalogs.length > 0 ? market.catalogs[0] : null;
                            const allMarketProducts = (market.catalogs && market.catalogs.length > 0)
                              ? market.catalogs.flatMap(c => c.products || [])
@@ -1515,6 +1560,7 @@ const App: React.FC = () => {
                                             key={`${market.id}-post-${idx}`}
                                             postUrl={post}
                                             index={idx}
+                                            marketIndex={marketIdx}
                                             onClick={() => setInstagramViewerData({ posts: socialPosts, name: market.name, initialIndex: idx })}
                                           />
                                         ))}
