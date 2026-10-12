@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import { X, ArrowLeft, CheckCircle2, TrendingDown, ArrowRight, ShoppingCart } from 'lucide-react';
+import { X, ArrowLeft, CheckCircle2, TrendingDown, ArrowRight, ShoppingCart, Clock, Calendar } from 'lucide-react';
 import { DiscountProduct, MarketData } from '../types';
 
 interface ProductDetailModalProps {
@@ -13,6 +13,7 @@ interface ProductDetailModalProps {
   canGoBack?: boolean;
   onBack?: () => void;
   showComparisons?: boolean; // New prop to control visibility of comparison list
+  catalogEndDate?: string;
 }
 
 const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ 
@@ -24,7 +25,8 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   onCompareClick,
   canGoBack,
   onBack,
-  showComparisons = false
+  showComparisons = false,
+  catalogEndDate
 }) => {
   if (!isOpen || !product) return null;
 
@@ -111,6 +113,20 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     return alternatives.sort((a, b) => b.diff - a.diff);
   }, [product, allMarkets, marketName, showComparisons]);
 
+  // Format date helper
+  const formatEndDate = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}.${month}.${year}`;
+  };
+
+  const effectiveEndDate = product.expiryDate || catalogEndDate;
+  const formattedEndDate = formatEndDate(effectiveEndDate);
+
   // Image Fallback
   const imageUrl = product.customImageUrl 
     ? product.customImageUrl 
@@ -172,22 +188,29 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </h2>
 
             <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-2 mb-2">
-                 <div className="flex items-baseline gap-3">
-                    <span className="text-3xl font-black text-green-600 tracking-tight">
+                 <div className="flex flex-col items-start gap-1">
+                    <span className="text-2xl sm:text-3xl font-black text-green-600 tracking-tight leading-none">
                       {product.newPrice} <span className="text-xl">₼</span>
                     </span>
                     {product.oldPrice && product.oldPrice !== '---' && (
-                        <span className="text-gray-400 text-base line-through font-medium">
-                        {product.oldPrice}
+                        <span className="text-gray-400 text-sm sm:text-base line-through font-medium leading-none">
+                          {product.oldPrice} ₼
                         </span>
                     )}
                  </div>
                  
-                 {isBestPrice && !showComparisons && (
+                 {formattedEndDate ? (
                    <div className="flex flex-col items-end">
-                       <div className="flex items-center gap-1 text-green-700 bg-green-50 px-2 py-1 rounded text-xs font-bold border border-green-100">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Əla Qiymət
+                       <div className="flex items-center gap-1.5 text-amber-800 bg-amber-50 px-2.5 py-1.5 rounded-lg text-xs font-bold border border-amber-200/80 shadow-2xs">
+                        <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>Bitmə: {formattedEndDate}</span>
+                       </div>
+                   </div>
+                 ) : (
+                   <div className="flex flex-col items-end">
+                       <div className="flex items-center gap-1.5 text-gray-600 bg-gray-50 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-gray-200">
+                        <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        <span>Müddətsiz</span>
                        </div>
                    </div>
                  )}

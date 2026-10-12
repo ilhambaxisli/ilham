@@ -157,16 +157,16 @@ const ProductCard: React.FC<ProductCardProps> = ({
           )}
         </div>
         
-        <div className={`${isMini ? 'mt-1 pt-0.5' : 'mt-1.5 pt-1'} border-t border-gray-100 flex items-end justify-between`}>
-          <div className="flex flex-col">
-            {product.oldPrice && product.oldPrice !== '---' ? (
-              <span className={`text-gray-400 line-through leading-none mb-0.5 ${isMini ? 'text-[8px] sm:text-[9px]' : 'text-[8.5px] sm:text-[9.5px]'}`}>
+        <div className="mt-1.5 pt-1 border-t border-gray-100 flex items-baseline justify-between gap-1">
+          <div className="flex items-baseline gap-1.5 flex-nowrap whitespace-nowrap overflow-hidden">
+            <span className={`font-black text-${accentColor}-600 leading-none text-[15px] sm:text-base shrink-0 whitespace-nowrap`}>
+              {product.newPrice} <span className="text-[0.75em] font-bold">₼</span>
+            </span>
+            {product.oldPrice && product.oldPrice !== '---' && (
+              <span className="text-gray-400 line-through leading-none font-semibold text-[11px] sm:text-xs shrink-0 whitespace-nowrap">
                 {product.oldPrice}
               </span>
-            ) : null}
-            <span className={`font-black text-${accentColor}-600 leading-none ${isMini ? 'text-xs sm:text-sm' : 'text-xs sm:text-sm'}`}>
-              {product.newPrice} <span className="text-[0.7em]">₼</span>
-            </span>
+            )}
           </div>
         </div>
       </div>

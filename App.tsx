@@ -15,7 +15,7 @@ import ProductDetailModal from './components/ProductDetailModal';
 import SocialDealsModal from './components/SocialDealsModal';
 import { MarketData, DiscountProduct, BannerData, SupabaseConfig, Catalog, FavoriteItem } from './types';
 import * as supabaseService from './services/supabase';
-import { RefreshCw, ShoppingBag, ArrowRight, Loader2, Plus, Trash2, Search, Database, Home, ChevronRight, Store, LayoutList, XCircle, ChevronUp, ChevronDown, Edit, Calendar, Clock, AlertTriangle, CheckCircle2, ShoppingCart, TrendingDown, ArrowLeft, Heart, RotateCcw, Instagram, X, ChevronLeft, Sparkles, ExternalLink, Tag, Percent } from 'lucide-react';
+import { RefreshCw, ShoppingBag, ArrowRight, Loader2, Plus, Trash2, Search, Database, Home, ChevronRight, Store, LayoutList, XCircle, ChevronUp, ChevronDown, Edit, Calendar, Clock, AlertTriangle, CheckCircle2, ShoppingCart, TrendingDown, ArrowLeft, Heart, RotateCcw, Instagram, X, Check, ChevronLeft, Sparkles, ExternalLink, Tag, Percent } from 'lucide-react';
 
 const INITIAL_MARKETS: MarketData[] = [
   {
@@ -78,6 +78,14 @@ const getEmbedUrl = (url: string) => {
   if (!url) return '';
   const clean = url.split('?')[0].replace(/\/$/, '');
   return `${clean}/embed/`;
+};
+
+const formatMarketButtonName = (name: string) => {
+  const trimmed = (name || '').trim();
+  if (/^al(\s+market)?$/i.test(trimmed)) {
+    return 'Al Market';
+  }
+  return trimmed.replace(/\s+Market$/i, '') || trimmed;
 };
 
 const MARKET_COLOR_STYLES: Record<string, { unselected: string; selected: string }> = {
@@ -154,6 +162,22 @@ const getMarketButtonStyle = (market: MarketData, index: number, isSelected: boo
     FALLBACK_PALETTES[index % FALLBACK_PALETTES.length];
 
   return isSelected ? matched.selected : matched.unselected;
+};
+
+// Normalize Azerbaijani & Turkish letters for fuzzy search: cips == Çips, yag == yağ, e == ə, u == ü, s == ş, etc.
+const normalizeTextForSearch = (text: string): string => {
+  if (!text) return '';
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/ə/g, 'e')
+    .replace(/ı/g, 'i')
+    .replace(/i̇/g, 'i')
+    .replace(/ö/g, 'o')
+    .replace(/ü/g, 'u')
+    .replace(/ğ/g, 'g')
+    .replace(/ş/g, 's')
+    .replace(/ç/g, 'c');
 };
 
 interface InstagramThumbnailProps {
@@ -301,12 +325,14 @@ interface InstagramModalProps {
 const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts, marketName, initialIndex = 0 }) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isInitialLoaded, setIsInitialLoaded] = useState(false);
+  const [showRedirectConfirm, setShowRedirectConfirm] = useState(false);
 
   // Modal açılanda və ya market dəyişəndə sıfırla
   useEffect(() => {
     if (isOpen) {
       setCurrentIndex(initialIndex);
       setIsInitialLoaded(false);
+      setShowRedirectConfirm(false);
 
       const timer = setTimeout(() => {
         setIsInitialLoaded(true);
@@ -320,23 +346,25 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
   // Növbəti posta keçid
   const handleNext = () => {
     if (posts.length <= 1) return;
+    setShowRedirectConfirm(false);
     setCurrentIndex(prev => (prev < posts.length - 1 ? prev + 1 : 0));
   };
 
   // Əvvəlki posta keçid
   const handlePrev = () => {
     if (posts.length <= 1) return;
+    setShowRedirectConfirm(false);
     setCurrentIndex(prev => (prev > 0 ? prev - 1 : posts.length - 1));
   };
 
   const currentPostUrl = posts[currentIndex] || '';
 
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-4 select-none">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity" onClick={onClose}></div>
+    <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-4 select-none">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-xs transition-opacity" onClick={onClose}></div>
 
       {/* Container with Floating Navigation for larger screens */}
-      <div className="relative flex items-center justify-center max-w-full">
+      <div className="relative flex items-center justify-center w-full max-w-[480px] sm:max-w-[540px]">
         {/* Floating Left Button for desktop */}
         {posts.length > 1 && (
           <button 
@@ -348,7 +376,7 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
           </button>
         )}
 
-        <div className="relative w-full max-w-[390px] sm:max-w-[420px] bg-white rounded-[24px] overflow-hidden shadow-2xl animate-[fadeIn_0.2s_ease-out] flex flex-col border border-gray-100">
+        <div className="relative w-full bg-white rounded-2xl sm:rounded-[24px] overflow-hidden shadow-2xl animate-[fadeIn_0.2s_ease-out] flex flex-col border border-gray-100 max-h-[92vh]">
           
           {/* Header - Təmiz və minimal */}
           <div className="px-3.5 py-2.5 flex items-center justify-between shrink-0 bg-white border-b border-gray-50 select-none">
@@ -364,15 +392,14 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
 
             <div className="flex items-center gap-1 shrink-0">
               {currentPostUrl && currentPostUrl.includes('instagram.com') && (
-                <a 
-                  href={currentPostUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="p-1.5 hover:bg-pink-50 rounded-full text-gray-400 hover:text-pink-600 transition-colors"
+                <button 
+                  type="button"
+                  onClick={() => setShowRedirectConfirm(true)}
+                  className="p-1.5 hover:bg-pink-50 rounded-full text-gray-400 hover:text-pink-600 transition-colors cursor-pointer"
                   title="Instagram-da aç"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                </button>
               )}
               <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400 transition-colors">
                 <X className="w-4 h-4" />
@@ -382,6 +409,17 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
 
           {/* Visual Content (4:5 Ratio) - Karuselə toxunmaq və şəkilləri vərəqləmək aktivdir */}
           <div className="relative w-full bg-white overflow-hidden shrink-0 select-none" style={{ aspectRatio: '4/5' }}>
+            {/* Clickable overlay to ask confirmation before redirecting to Instagram */}
+            <div 
+              onClick={() => {
+                if (currentPostUrl) {
+                  setShowRedirectConfirm(true);
+                }
+              }}
+              className="absolute inset-0 z-30 cursor-pointer"
+              title="Instagram postuna baxmaq üçün toxunun"
+            />
+
             {/* Multi-Slide Track */}
             <div className="w-full h-full relative">
               {posts.map((postUrl, idx) => {
@@ -401,10 +439,10 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
                   >
                     {shouldRenderContent ? (
                       isIg ? (
-                        <div className="absolute top-[-52px] left-0 w-full h-[calc(100%+110px)]">
+                        <div className="absolute top-[-52px] left-0 w-full h-[calc(100%+110px)] pointer-events-none">
                           <iframe 
                             src={getEmbedUrl(postUrl)}
-                            className={`w-full h-full border-none ${isCurrent ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                            className="w-full h-full border-none pointer-events-none"
                             scrolling="no"
                             loading={isCurrent ? "eager" : "lazy"}
                             title={`Instagram Post ${idx + 1}`}
@@ -416,7 +454,7 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
                           />
                         </div>
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                        <div className="w-full h-full flex items-center justify-center bg-gray-50 pointer-events-none">
                           <img 
                             src={postUrl} 
                             alt={`Fürsət ${idx + 1}`} 
@@ -451,6 +489,49 @@ const InstagramViewer: React.FC<InstagramModalProps> = ({ isOpen, onClose, posts
               </div>
             )}
             
+            {/* Confirmation Overlay when clicking post */}
+            {showRedirectConfirm && (
+              <div className="absolute inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4 animate-[fadeIn_0.15s_ease-out]">
+                <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-2xl max-w-xs w-full text-center flex flex-col items-center">
+                  <div className="w-12 h-12 rounded-full bg-pink-50 text-pink-600 flex items-center justify-center mb-3">
+                    <Instagram className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm sm:text-base font-black text-gray-900 mb-1">
+                    İnstagram-a yönləndirilsin?
+                  </p>
+                  <p className="text-xs text-gray-500 mb-5">
+                    Post İnstagram səhifəsində açılacaq
+                  </p>
+                  <div className="flex items-center justify-center gap-6 w-full">
+                    {/* Red Icon: NO */}
+                    <button
+                      type="button"
+                      onClick={() => setShowRedirectConfirm(false)}
+                      className="w-12 h-12 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 text-white flex items-center justify-center shadow-md hover:shadow-lg transition-all cursor-pointer"
+                      title="Xeyr"
+                    >
+                      <X className="w-6 h-6 stroke-[2.5]" />
+                    </button>
+
+                    {/* Green Icon: YES */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRedirectConfirm(false);
+                        if (currentPostUrl) {
+                          window.open(currentPostUrl, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                      className="w-12 h-12 rounded-full bg-green-500 hover:bg-green-600 active:scale-95 text-white flex items-center justify-center shadow-md hover:shadow-lg transition-all cursor-pointer"
+                      title="Bəli"
+                    >
+                      <Check className="w-6 h-6 stroke-[2.5]" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Edge Masks */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-white z-40 pointer-events-none"></div>
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-white z-40 pointer-events-none"></div>
@@ -595,7 +676,7 @@ const App: React.FC = () => {
   const [marketToEdit, setMarketToEdit] = useState<MarketData | null>(null);
   const [productToEdit, setProductToEdit] = useState<{product: DiscountProduct, index: number, catalogId?: string} | null>(null);
   const [isDatabaseModalOpen, setIsDatabaseModalOpen] = useState(false);
-  const [viewProduct, setViewProduct] = useState<{product: DiscountProduct, marketName: string} | null>(null);
+  const [viewProduct, setViewProduct] = useState<{product: DiscountProduct, marketName: string, catalogEndDate?: string} | null>(null);
   const [previousViewState, setPreviousViewState] = useState<ViewState | null>(null);
   const [instagramViewerData, setInstagramViewerData] = useState<{posts: string[], name: string, initialIndex: number} | null>(null);
 
@@ -844,8 +925,11 @@ const App: React.FC = () => {
       markets.forEach(market => {
           const allProds = market.catalogs ? market.catalogs.flatMap(c => c.products) : (market.products || []);
           allProds.forEach(p => {
-             const pName = (p.productName || '').toLowerCase();
-             if (debouncedSearchQuery.length > 0 && !pName.includes(debouncedSearchQuery.toLowerCase())) return;
+             if (debouncedSearchQuery.length > 0) {
+               const pNorm = normalizeTextForSearch(p.productName || '');
+               const qNorm = normalizeTextForSearch(debouncedSearchQuery);
+               if (!pNorm.includes(qNorm)) return;
+             }
              const normalizedName = (p.productName || '').trim().toLowerCase();
              if (!normalizedName) return;
              const priceVal = parsePriceNumber(p.newPrice);
@@ -912,8 +996,11 @@ const App: React.FC = () => {
       .map(market => {
         const allProducts = market.catalogs ? market.catalogs.flatMap(c => c.products) : (market.products || []);
         const results = allProducts.filter(product => {
-            const pName = (product.productName || '').toLowerCase();
-            if (debouncedSearchQuery.length > 0 && !pName.includes(debouncedSearchQuery.toLowerCase())) return false;
+            if (debouncedSearchQuery.length > 0) {
+              const pNorm = normalizeTextForSearch(product.productName || '');
+              const qNorm = normalizeTextForSearch(debouncedSearchQuery);
+              if (!pNorm.includes(qNorm)) return false;
+            }
             if (debouncedMaxPrice) {
                 const price = parsePriceNumber(product.newPrice);
                 const limit = parsePriceNumber(debouncedMaxPrice);
@@ -928,8 +1015,11 @@ const App: React.FC = () => {
   }, [markets, debouncedSearchQuery, debouncedMaxPrice, deferredCheaperOnly, activeMarketId, showFavorites, productPriceIndex]);
 
   const filterProductForDetail = (product: DiscountProduct) => {
-     const pName = (product.productName || '').toLowerCase();
-     if (debouncedSearchQuery.length > 0 && !pName.includes(debouncedSearchQuery.toLowerCase())) return false;
+     if (debouncedSearchQuery.length > 0) {
+       const pNorm = normalizeTextForSearch(product.productName || '');
+       const qNorm = normalizeTextForSearch(debouncedSearchQuery);
+       if (!pNorm.includes(qNorm)) return false;
+     }
      return true;
   };
   
@@ -1142,6 +1232,27 @@ const App: React.FC = () => {
   const currentDepthRef = useRef<number>(0);
   const isInternalNavRef = useRef<boolean>(false);
 
+  // Dynamic sticky header height measurement for sticky category headers
+  const stickyHeaderRef = useRef<HTMLDivElement>(null);
+  const [stickyHeaderHeight, setStickyHeaderHeight] = useState<number>(115);
+
+  useEffect(() => {
+    const updateHeaderHeight = () => {
+      if (stickyHeaderRef.current) {
+        const h = stickyHeaderRef.current.offsetHeight;
+        if (h > 0) setStickyHeaderHeight(h);
+      }
+    };
+    updateHeaderHeight();
+    const ro = new ResizeObserver(updateHeaderHeight);
+    if (stickyHeaderRef.current) ro.observe(stickyHeaderRef.current);
+    window.addEventListener('resize', updateHeaderHeight);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', updateHeaderHeight);
+    };
+  }, [activeMarketId, isLoading, showFavorites]);
+
   // Check if any modal is currently open
   const hasOpenModal = Boolean(
     viewProduct ||
@@ -1243,13 +1354,21 @@ const App: React.FC = () => {
     }
   }, [targetDepth]);
 
+  const activeMarketObj = activeMarketId ? (markets.find(m => m.id === activeMarketId) || null) : null;
+  const activeMarketCatalogs = activeMarketObj?.catalogs || [];
+  const activeSelectedCatId = activeMarketObj ? (activeCatalogByMarket[activeMarketObj.id] || (activeMarketCatalogs[0]?.id || null)) : null;
+  const activeMarketCatalog = activeMarketObj ? (activeMarketCatalogs.find(c => c.id === activeSelectedCatId) || (activeMarketCatalogs[0] || null)) : null;
+  const activeDateStatus = getCatalogDateStatus(activeMarketCatalog || undefined);
+  const activeMarketProducts = activeMarketCatalog ? (activeMarketCatalog.products || []) : (activeMarketObj?.products || []);
+  const activeMarketFilteredProducts = activeMarketProducts.filter(filterProductForDetail);
+
   return (
     <>
       {isLoading && <CartLoading />}
 
       <div className={`min-h-screen bg-white pb-24 font-sans flex flex-col transition-all duration-700 ${isLoading ? 'blur-lg scale-[0.99] opacity-80 pointer-events-none overflow-hidden h-screen' : 'blur-0 scale-100 opacity-100'}`}>
         {/* --- UNIFIED STICKY HEADER & MARKET SWITCHER --- */}
-        <div className="sticky top-0 z-50 bg-white shadow-xs">
+        <div ref={stickyHeaderRef} className="sticky top-0 z-50 bg-white shadow-xs">
           <Header 
             onAdminClick={handleAdminClick} 
             isAdmin={isAdmin} 
@@ -1270,39 +1389,121 @@ const App: React.FC = () => {
             favoritesCount={favorites.length}
           />
 
-          {/* --- HORIZONTAL MARKET SWITCHER (STICKY) --- */}
+          {/* --- STICKY MARKET NAVIGATION / ACTIVE MARKET HEADER --- */}
           {!isLoading && !showFavorites && (
-            <nav className="bg-white/95 backdrop-blur-md border-t border-b border-gray-100 py-1.5 sm:py-2 sticky top-[138px] sm:top-[128px] md:top-[132px] z-30">
-               <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
-                  {/* Hamısı (All Markets) button */}
-                  <button
-                    onClick={() => handleSelectMarket(null)}
-                    className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                      activeMarketId === null
-                        ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-500/25'
-                        : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-300/80'
-                    }`}
-                  >
-                    Hamısı
-                  </button>
+            activeMarketId === null ? (
+              <nav className="bg-white/95 backdrop-blur-md border-t border-b border-gray-100 py-1.5 sm:py-2">
+                 <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+                    {/* Hamısı (All Markets) button */}
+                    <button
+                      onClick={() => handleSelectMarket(null)}
+                      className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                        activeMarketId === null
+                          ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-500/25'
+                          : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-300/80'
+                      }`}
+                    >
+                      Hamısı
+                    </button>
 
-                  {/* Market Tags */}
-                  {markets.map((market, index) => {
-                    const isSelected = activeMarketId === market.id;
-                    const displayName = market.name.replace(/\s+Market$/i, '') || market.name;
-                    const colorStyle = getMarketButtonStyle(market, index, isSelected);
-                    return (
-                      <button
-                        key={market.id}
-                        onClick={() => handleSelectMarket(market.id)}
-                        className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${colorStyle}`}
-                      >
-                        {displayName}
-                      </button>
-                    );
-                  })}
-               </div>
-            </nav>
+                    {/* Market Tags */}
+                    {markets.map((market, index) => {
+                      const isSelected = activeMarketId === market.id;
+                      const displayName = formatMarketButtonName(market.name);
+                      const colorStyle = getMarketButtonStyle(market, index, isSelected);
+                      return (
+                        <button
+                          key={market.id}
+                          onClick={() => handleSelectMarket(market.id)}
+                          className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${colorStyle}`}
+                        >
+                          {displayName}
+                        </button>
+                      );
+                    })}
+                 </div>
+              </nav>
+            ) : activeMarketObj ? (
+              <div className="bg-white/95 backdrop-blur-md border-t border-b border-gray-100 py-1.5 sm:py-2 px-2.5 sm:px-4 shadow-xs">
+                <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
+                  {/* Left: Back to Home + Market Logo + Market Name (Fixed at top on scroll) */}
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectMarket(null)}
+                      className="p-1.5 sm:p-2 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 text-gray-700 rounded-lg sm:rounded-xl border border-gray-200 transition-all flex items-center gap-1 shrink-0 active:scale-95"
+                      title="Ana səhifəyə qayıt"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-700" strokeWidth={2.5} />
+                      <span className="hidden sm:inline text-xs font-bold text-gray-700">Ana Səhifə</span>
+                    </button>
+
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white border border-gray-100 shadow-2xs flex items-center justify-center overflow-hidden shrink-0">
+                      {activeMarketObj.logoUrl ? (
+                        <img src={activeMarketObj.logoUrl} alt={activeMarketObj.name} className="w-full h-full object-contain p-0.5" />
+                      ) : (
+                        <span className={`text-${activeMarketObj.themeColor || 'green'}-700 font-bold text-sm sm:text-lg`}>{activeMarketObj.logoPlaceholder}</span>
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <h2 className="text-sm sm:text-base md:text-lg font-black text-gray-900 truncate tracking-tight">{activeMarketObj.name}</h2>
+                        {activeDateStatus.label && (
+                          <span className={`hidden sm:inline-block text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${activeDateStatus.isActive ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-600 border-red-200"}`}>
+                            {activeDateStatus.label}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] sm:text-xs text-gray-400 font-medium">
+                          {activeMarketFilteredProducts.length} məhsul
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Admin buttons + Quick Market Switcher */}
+                  <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                    {isAdmin && (
+                      <>
+                        <button 
+                          onClick={() => { setActiveMarketId(activeMarketObj.id); handleAddProductManually(); }} 
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg font-bold text-[11px] sm:text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> <span className="hidden md:inline">Əllə Əlavə et</span>
+                        </button>
+                        <button 
+                          onClick={() => { setActiveMarketId(activeMarketObj.id); setIsScannerOpen(true); }} 
+                          className={`flex items-center gap-1 px-2 py-1 rounded-lg font-bold text-[11px] sm:text-xs shadow-2xs transition-all bg-${activeMarketObj.themeColor || 'green'}-600 hover:bg-${activeMarketObj.themeColor || 'green'}-700 text-white active:scale-95`}
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isStreaming && activeMarketId === activeMarketObj.id ? 'animate-spin' : ''}`} /> <span className="hidden md:inline">Kataloqu Yenilə</span>
+                        </button>
+                      </>
+                    )}
+
+                    {/* Quick horizontal scroll of all market pills */}
+                    <div className="flex items-center gap-1 pl-1.5 sm:pl-2 border-l border-gray-200 max-w-[130px] xs:max-w-[180px] sm:max-w-xs md:max-w-md overflow-x-auto scrollbar-hide py-0.5">
+                      {markets.map((m) => {
+                        const isCur = m.id === activeMarketId;
+                        const name = formatMarketButtonName(m.name);
+                        return (
+                          <button
+                            key={m.id}
+                            onClick={() => handleSelectMarket(m.id)}
+                            className={`px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-semibold shrink-0 transition-colors cursor-pointer ${
+                              isCur ? 'bg-blue-600 text-white shadow-2xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            {name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null
           )}
         </div>
         
@@ -1400,7 +1601,7 @@ const App: React.FC = () => {
                                     isAdmin={isAdmin}
                                     variant="compact"
                                     hasCheaperAlternative={hasCheaper}
-                                    onClick={() => !isAdmin && setViewProduct({ product, marketName })}
+                                    onClick={() => !isAdmin && setViewProduct({ product, marketName, catalogEndDate: market?.catalogs?.[0]?.endDate })}
                                     isFavorite={true}
                                     onToggleFavorite={() => toggleFavorite(product, product.marketId)}
                                   />
@@ -1458,7 +1659,7 @@ const App: React.FC = () => {
                                 <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4`}>
                                 {market.filteredProducts.slice(0, visibleProductCount).map((product, index) => {
                                     const fav = isFavorite(product.productName || '', market.id);
-                                    return <ProductCard key={`${market.id}-${product.productName}-${index}`} product={product} accentColor={market.themeColor} isAdmin={isAdmin} variant="compact" hasCheaperAlternative={(product as any)._hasCheaper} onClick={() => !isAdmin && setViewProduct({ product, marketName: market.name })} onEdit={() => handleEditFromSearch(product, market.id)} isFavorite={fav} onToggleFavorite={() => toggleFavorite(product, market.id)} />;
+                                    return <ProductCard key={`${market.id}-${product.productName}-${index}`} product={product} accentColor={market.themeColor} isAdmin={isAdmin} variant="compact" hasCheaperAlternative={(product as any)._hasCheaper} onClick={() => !isAdmin && setViewProduct({ product, marketName: market.name, catalogEndDate: market.catalogs?.[0]?.endDate })} onEdit={() => handleEditFromSearch(product, market.id)} isFavorite={fav} onToggleFavorite={() => toggleFavorite(product, market.id)} />;
                                 })}
                                 </div>
                             </div>
@@ -1476,8 +1677,10 @@ const App: React.FC = () => {
                              ? market.catalogs.flatMap(c => c.products || [])
                              : (market.products || []);
                            const catalogProductsCount = previewCatalog ? (previewCatalog.products?.length || 0) : allMarketProducts.length;
-                           // Sort descending by discount percentage so highest discount products appear on home page
-                           const previewProducts = [...allMarketProducts].sort((a, b) => getProductDiscountPercent(b) - getProductDiscountPercent(a));
+                           // Show first 3 products from the list as they are (natural list order)
+                           const previewProducts = (previewCatalog?.products && previewCatalog.products.length > 0)
+                             ? previewCatalog.products
+                             : allMarketProducts;
                            const dateStatus = getCatalogDateStatus(previewCatalog || undefined);
                            const socialPosts = market.instagramPosts || [];
                            return (
@@ -1509,7 +1712,7 @@ const App: React.FC = () => {
                                <div className="grid grid-cols-3 gap-2 sm:gap-2.5 mb-2.5 sm:mb-3">
                                   {(previewProducts || []).slice(0, 3).map((product, idx) => (
                                     <div key={`${market.id}-preview-${idx}`} className="block h-full">
-                                      <ProductCard product={product} accentColor={market.themeColor} isAdmin={isAdmin} variant="compact" onClick={() => !isAdmin && setViewProduct({ product, marketName: market.name })} onEdit={() => { setActiveMarketId(market.id); setActiveCatalogId(previewCatalog?.id || null); setProductToEdit({ product, index: idx, catalogId: previewCatalog?.id }); }} isFavorite={isFavorite(product.productName || "", market.id)} onToggleFavorite={() => toggleFavorite(product, market.id)} />
+                                      <ProductCard product={product} accentColor={market.themeColor} isAdmin={isAdmin} variant="compact" onClick={() => !isAdmin && handleSelectMarket(market.id)} onEdit={() => { setActiveMarketId(market.id); setActiveCatalogId(previewCatalog?.id || null); setProductToEdit({ product, index: idx, catalogId: previewCatalog?.id }); }} isFavorite={isFavorite(product.productName || "", market.id)} onToggleFavorite={() => toggleFavorite(product, market.id)} />
                                     </div>
                                   ))}
                                </div>
@@ -1520,7 +1723,7 @@ const App: React.FC = () => {
                                      <div className="flex items-center justify-between mb-1.5 sm:mb-2 px-0.5">
                                         <div className="flex items-center gap-1.5 sm:gap-2">
                                           <Instagram className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-600 shrink-0" />
-                                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">İnstagram Son Paylaşımlar</span>
+                                          <span className="text-[10px] font-bold text-gray-900 uppercase tracking-wider">İnstagram Son Paylaşımlar</span>
                                           {socialPosts.length > 3 && (
                                             <span className="text-[9px] font-bold text-pink-600 bg-pink-50 px-1.5 py-0.2 rounded-full border border-pink-100">
                                               {socialPosts.length}
@@ -1536,23 +1739,12 @@ const App: React.FC = () => {
                                             >
                                               Hamısı ({socialPosts.length}) <ChevronRight className="w-2.5 h-2.5" />
                                             </button>
-                                          ) : (
-                                            <Instagram className="w-3.5 h-3.5 text-pink-400" />
-                                          )}
+                                          ) : null}
                                         </div>
                                      </div>
                                      
-                                     <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-                                        {/* 1st Square: Instagram Icon Box */}
-                                        <div 
-                                          onClick={() => setInstagramViewerData({ posts: socialPosts, name: market.name, initialIndex: 0 })}
-                                          className="w-full aspect-square rounded-lg sm:rounded-xl bg-gradient-to-tr from-[#f09433] via-[#dc2743] to-[#bc1888] flex flex-col items-center justify-center cursor-pointer shadow-2xs hover:shadow-xs hover:scale-[1.03] active:scale-95 transition-all text-white group select-none relative overflow-hidden"
-                                          title={`${market.name} İnstagram Fürsətləri`}
-                                        >
-                                          <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors" />
-                                          <Instagram className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow-xs group-hover:scale-110 transition-transform" />
-                                          <span className="text-[7.5px] sm:text-[9px] font-extrabold text-white/95 tracking-tight mt-1 leading-none uppercase">İnstagram</span>
-                                        </div>
+                                     <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                                        {/* 3 Posts side-by-side matching the 3 preview products above */}
 
                                         {/* 2nd, 3rd, 4th Squares: Latest 3 Posts */}
                                         {socialPosts.slice(0, 3).map((post, idx) => (
@@ -1614,65 +1806,33 @@ const App: React.FC = () => {
                           const displayedProducts = mktFilteredProducts.slice(0, visibleDetailCount);
                           const hasMore = visibleDetailCount < mktFilteredProducts.length;
 
+                          // Categorization logic: group by category if categories exist, else flat list
+                          const distinctCategories = Array.from(
+                            new Set(displayedProducts.map(p => (p.category || '').trim()).filter(Boolean))
+                          );
+                          const hasCategories = distinctCategories.length > 0 && !(distinctCategories.length === 1 && distinctCategories[0].toLowerCase() === 'digər');
+
+                          const groupedProductsByCategory: { category: string; products: { product: DiscountProduct; originalIndex: number }[] }[] = [];
+                          if (hasCategories) {
+                            const catMap = new Map<string, { category: string; products: { product: DiscountProduct; originalIndex: number }[] }>();
+                            displayedProducts.forEach((product, idx) => {
+                              const cat = (product.category || 'Digər').trim() || 'Digər';
+                              if (!catMap.has(cat)) {
+                                const newGroup = { category: cat, products: [] };
+                                catMap.set(cat, newGroup);
+                                groupedProductsByCategory.push(newGroup);
+                              }
+                              catMap.get(cat)!.products.push({ product, originalIndex: idx });
+                            });
+                          }
+
                           return (
                             <div 
                               key={mkt.id} 
                               id={`market-detail-${mkt.id}`}
                               className="scroll-mt-24 sm:scroll-mt-28"
                             >
-                              {/* Compact Market Header (Identical compact style as home page, minimal padding) */}
-                              <div className="bg-white p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border border-gray-100 shadow-xs mb-2.5 sm:mb-3 flex items-center justify-between">
-                                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSelectMarket(null)}
-                                    className="p-1.5 sm:p-2 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 text-gray-700 rounded-lg sm:rounded-xl border border-gray-200 transition-all flex items-center gap-1 shrink-0 active:scale-95"
-                                    title="Ana səhifəyə qayıt"
-                                  >
-                                    <ArrowLeft className="w-4 h-4 text-gray-700" strokeWidth={2.5} />
-                                    <span className="hidden sm:inline text-xs font-bold text-gray-700">Ana Səhifə</span>
-                                  </button>
-                                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-white border border-gray-100 shadow-xs flex items-center justify-center overflow-hidden shrink-0`}>
-                                    {mkt.logoUrl ? (
-                                      <img src={mkt.logoUrl} alt={mkt.name} className="w-full h-full object-contain p-1" />
-                                    ) : (
-                                      <span className={`text-${mktAccent}-700 font-bold text-base sm:text-xl`}>{mkt.logoPlaceholder}</span>
-                                    )}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <h2 className="text-base sm:text-xl font-black text-gray-800 truncate">{mkt.name}</h2>
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                      {mktDateStatus.label && (
-                                        <span className={`inline-block text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full border ${mktDateStatus.isActive ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-600 border-red-200"}`}>
-                                          {mktDateStatus.label}
-                                        </span>
-                                      )}
-                                      <span className="text-[10px] sm:text-xs text-gray-400 font-medium">
-                                        {mktFilteredProducts.length} məhsul
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
 
-                                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                                  {isAdmin && (
-                                    <>
-                                      <button 
-                                        onClick={() => { setActiveMarketId(mkt.id); handleAddProductManually(); }} 
-                                        className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg sm:rounded-xl font-bold text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
-                                      >
-                                        <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Əllə Əlavə et</span>
-                                      </button>
-                                      <button 
-                                        onClick={() => { setActiveMarketId(mkt.id); setIsScannerOpen(true); }} 
-                                        className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg sm:rounded-xl font-bold text-xs shadow-sm transition-all bg-${mktAccent}-600 hover:bg-${mktAccent}-700 text-white active:scale-95`}
-                                      >
-                                        <RefreshCw className={`w-3.5 h-3.5 ${isStreaming && activeMarketId === mkt.id ? 'animate-spin' : ''}`} /> <span className="hidden sm:inline">Kataloqu Yenilə</span>
-                                      </button>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
 
                               {/* Multi-Catalog Tabs ONLY if there are multiple catalogs (> 1) - eliminates single "Əsas Kataloq" tab */}
                               {mktCatalogs.length > 1 && (
@@ -1704,24 +1864,64 @@ const App: React.FC = () => {
                                 </div>
                               )}
 
-                              {/* Products Grid for this market (progressively loaded) */}
+                              {/* Products Grid for this market (grouped by category if present, or normal list) */}
                               {displayedProducts.length > 0 ? (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3.5 md:gap-4">
-                                  {displayedProducts.map((product, index) => (
-                                    <ProductCard 
-                                      key={`${mkt.id}-${product.productName}-${index}`} 
-                                      product={product} 
-                                      accentColor={mktAccent} 
-                                      isAdmin={isAdmin} 
-                                      variant="compact"
-                                      hasCheaperAlternative={checkForCheaperAlternative(product, mkt.id)} 
-                                      onClick={() => !isAdmin && setViewProduct({ product, marketName: mkt.name })} 
-                                      onEdit={() => { setActiveMarketId(mkt.id); setProductToEdit({ product, index, catalogId: selectedCatId || undefined }); }} 
-                                      isFavorite={isFavorite(product.productName || '', mkt.id)} 
-                                      onToggleFavorite={() => toggleFavorite(product, mkt.id)} 
-                                    />
-                                  ))}
-                                </div>
+                                hasCategories ? (
+                                  <div className="space-y-6 sm:space-y-8">
+                                    {groupedProductsByCategory.map((group) => (
+                                      <div key={group.category} className="space-y-2.5 sm:space-y-3">
+                                        {/* Category Header (Sticky right below market header) */}
+                                        <div 
+                                          style={{ top: `${stickyHeaderHeight}px` }}
+                                          className="sticky z-20 bg-white/95 backdrop-blur-md -mx-2 sm:-mx-4 px-2 sm:px-4 py-2 border-b border-gray-100 flex items-center justify-between gap-2 shadow-2xs transition-[top] duration-150"
+                                        >
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <div className={`w-1.5 h-4 sm:h-5 rounded-full bg-${mktAccent}-600 shrink-0`}></div>
+                                            <h3 className="font-black text-sm sm:text-base text-gray-800 tracking-tight truncate">
+                                              {group.category}
+                                            </h3>
+                                          </div>
+                                          <span className="text-[10px] sm:text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
+                                            {group.products.length} məhsul
+                                          </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3.5 md:gap-4">
+                                          {group.products.map(({ product, originalIndex }) => (
+                                            <ProductCard 
+                                              key={`${mkt.id}-${product.productName}-${originalIndex}`} 
+                                              product={product} 
+                                              accentColor={mktAccent} 
+                                              isAdmin={isAdmin} 
+                                              variant="compact"
+                                              hasCheaperAlternative={checkForCheaperAlternative(product, mkt.id)} 
+                                              onClick={() => !isAdmin && setViewProduct({ product, marketName: mkt.name, catalogEndDate: mktCatalog?.endDate })} 
+                                              onEdit={() => { setActiveMarketId(mkt.id); setProductToEdit({ product, index: originalIndex, catalogId: selectedCatId || undefined }); }} 
+                                              isFavorite={isFavorite(product.productName || '', mkt.id)} 
+                                              onToggleFavorite={() => toggleFavorite(product, mkt.id)} 
+                                            />
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3.5 md:gap-4">
+                                    {displayedProducts.map((product, index) => (
+                                      <ProductCard 
+                                        key={`${mkt.id}-${product.productName}-${index}`} 
+                                        product={product} 
+                                        accentColor={mktAccent} 
+                                        isAdmin={isAdmin} 
+                                        variant="compact"
+                                        hasCheaperAlternative={checkForCheaperAlternative(product, mkt.id)} 
+                                        onClick={() => !isAdmin && setViewProduct({ product, marketName: mkt.name, catalogEndDate: mktCatalog?.endDate })} 
+                                        onEdit={() => { setActiveMarketId(mkt.id); setProductToEdit({ product, index, catalogId: selectedCatId || undefined }); }} 
+                                        isFavorite={isFavorite(product.productName || '', mkt.id)} 
+                                        onToggleFavorite={() => toggleFavorite(product, mkt.id)} 
+                                      />
+                                    ))}
+                                  </div>
+                                )
                               ) : (
                                 <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 text-gray-400">
                                   <p className="text-sm font-medium">Bu marketdə heç bir məhsul tapılmadı.</p>
@@ -1766,7 +1966,7 @@ const App: React.FC = () => {
         {marketToEdit && <EditMarketModal isOpen={!!marketToEdit} onClose={() => setMarketToEdit(null)} market={marketToEdit} onSave={handleUpdateMarket} onDelete={handleDeleteMarket} />}
         {productToEdit && activeMarketId && <EditProductModal isOpen={!!productToEdit} onClose={() => setProductToEdit(null)} product={productToEdit.product} onSave={handleUpdateProduct} />}
         <DatabaseModal isOpen={isDatabaseModalOpen} onClose={() => setIsDatabaseModalOpen(false)} onSave={saveDatabaseConfig} currentConfig={supabaseConfig} />
-        <ProductDetailModal isOpen={!!viewProduct} onClose={() => setViewProduct(null)} product={viewProduct?.product || null} marketName={viewProduct?.marketName || ''} allMarkets={markets} onCompareClick={handleCompareClick} canGoBack={!!previousViewState} onBack={handleRestorePreviousView} showComparisons={showCheaperOnly} />
+        <ProductDetailModal isOpen={!!viewProduct} onClose={() => setViewProduct(null)} product={viewProduct?.product || null} marketName={viewProduct?.marketName || ''} allMarkets={markets} onCompareClick={handleCompareClick} canGoBack={!!previousViewState} onBack={handleRestorePreviousView} showComparisons={showCheaperOnly} catalogEndDate={viewProduct?.catalogEndDate} />
         
         <InstagramViewer 
           isOpen={!!instagramViewerData} 
