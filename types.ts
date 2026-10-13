@@ -19,7 +19,10 @@ export interface DiscountProduct {
   discountPercentage: string;
   category: ProductCategory;
   customImageUrl?: string;
-  expiryDate?: string; // New: Product-specific expiration date
+  expiryDate?: string; // Product-specific expiration date
+  bitis?: string; // Supabase product end date field
+  endDate?: string;
+  [key: string]: any;
 }
 
 export interface FavoriteItem extends DiscountProduct {

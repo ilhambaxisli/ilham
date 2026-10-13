@@ -21,6 +21,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, onClose, pr
         oldPrice: product.oldPrice !== undefined && product.oldPrice !== null ? String(product.oldPrice) : '',
         newPrice: product.newPrice !== undefined && product.newPrice !== null ? String(product.newPrice) : '',
         discountPercentage: product.discountPercentage !== undefined && product.discountPercentage !== null ? String(product.discountPercentage) : '',
+        expiryDate: product.expiryDate || (product as any).bitis || (product as any).endDate || '',
       });
     }
   }, [product, isOpen]);
@@ -29,7 +30,10 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ isOpen, onClose, pr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    onSave({
+      ...formData,
+      bitis: formData.expiryDate || (formData as any).bitis || undefined,
+    });
     onClose();
   };
 

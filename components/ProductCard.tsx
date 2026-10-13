@@ -52,6 +52,37 @@ const getCategoryIcon = (category: ProductCategory, isCompact: boolean) => {
   }
 };
 
+export const parseDateString = (rawDate: any): Date | null => {
+  if (!rawDate) return null;
+  if (rawDate instanceof Date) return isNaN(rawDate.getTime()) ? null : rawDate;
+  const str = String(rawDate).trim();
+  if (!str) return null;
+
+  // Handle YYYY-MM-DD (e.g. "2026-10-21")
+  const ymdMatch = str.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+  if (ymdMatch) {
+    const year = parseInt(ymdMatch[1], 10);
+    const month = parseInt(ymdMatch[2], 10) - 1;
+    const day = parseInt(ymdMatch[3], 10);
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // Handle DD.MM.YYYY or DD/MM/YYYY or DD-MM-YYYY (e.g. "21.10.2026")
+  const dmyMatch = str.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
+  if (dmyMatch) {
+    const day = parseInt(dmyMatch[1], 10);
+    const month = parseInt(dmyMatch[2], 10) - 1;
+    const year = parseInt(dmyMatch[3], 10);
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) return d;
+  return null;
+};
+
 const ProductCard: React.FC<ProductCardProps> = ({ 
   product, 
   accentColor, 
@@ -169,11 +200,18 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Right: Clock Icon & Remaining Days badge (hidden when hideCountdown is true) */}
           {!hideCountdown && (() => {
-            const rawEndDate = product.expiryDate || catalogEndDate;
+            const rawEndDate = 
+              product.expiryDate || 
+              (product as any).bitis || 
+              (product as any).bitisTarixi || 
+              (product as any).endDate || 
+              (product as any).expiry_date || 
+              catalogEndDate;
+
             let daysLeft: number | null = null;
             if (rawEndDate) {
-              const target = new Date(rawEndDate);
-              if (!isNaN(target.getTime())) {
+              const target = parseDateString(rawEndDate);
+              if (target) {
                 const now = new Date();
                 const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
                 const targetMid = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();

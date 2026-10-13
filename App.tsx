@@ -824,7 +824,16 @@ const App: React.FC = () => {
   }, [activeMarketId]);
 
   const migrateMarketData = (incomingMarkets: MarketData[]): MarketData[] => {
-    return (incomingMarkets || []).map(m => {
+    const normalizeProd = (p: DiscountProduct): DiscountProduct => {
+      const exp = p.expiryDate || (p as any).bitis || (p as any).bitisTarixi || (p as any).endDate || (p as any).expiry_date;
+      return {
+        ...p,
+        expiryDate: exp ? String(exp).trim() : undefined,
+        bitis: (p as any).bitis || exp || undefined
+      };
+    };
+
+    const migrated = (incomingMarkets || []).map(m => {
       let overrideColor = m.themeColor;
       if (m.id === 'araz') overrideColor = 'amber';
       if (m.id === 'oba') overrideColor = 'green';
@@ -834,17 +843,43 @@ const App: React.FC = () => {
         overrideLogoUrl = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRTsEY6AAE18u9Y57PHT9fxiujtBzAMxNFVtZl7TgONVA&s=10';
       }
       
-      let updatedMarket = { ...m, themeColor: overrideColor, logoUrl: overrideLogoUrl };
+      const normProducts = (m.products || []).map(normalizeProd);
+      let updatedMarket: MarketData = { 
+        ...m, 
+        themeColor: overrideColor, 
+        logoUrl: overrideLogoUrl,
+        products: normProducts
+      };
+
       if (!updatedMarket.catalogs) updatedMarket.catalogs = [];
-      if (updatedMarket.catalogs.length === 0 && updatedMarket.products && updatedMarket.products.length > 0) {
+
+      // Normalize products inside existing catalogs
+      updatedMarket.catalogs = updatedMarket.catalogs.map(c => {
+        const cProds = (c.products || []).map(normalizeProd);
+        let cEndDate = c.endDate;
+        if (!cEndDate) {
+          const dates = cProds.map(p => p.expiryDate).filter(Boolean) as string[];
+          if (dates.length > 0) cEndDate = dates.sort()[dates.length - 1];
+        }
+        return {
+          ...c,
+          products: cProds,
+          endDate: cEndDate
+        };
+      });
+
+      if (updatedMarket.catalogs.length === 0 && normProducts.length > 0) {
+        const dates = normProducts.map(p => p.expiryDate).filter(Boolean) as string[];
+        const catalogEndDate = dates.length > 0 ? dates.sort()[dates.length - 1] : undefined;
         return {
           ...updatedMarket,
           catalogs: [{
             id: 'main',
             name: 'Əsas Kataloq',
-            products: updatedMarket.products,
+            products: normProducts,
             lastUpdated: updatedMarket.lastUpdated || new Date().toISOString(),
-            url: updatedMarket.url
+            url: updatedMarket.url,
+            endDate: catalogEndDate
           }]
         };
       }

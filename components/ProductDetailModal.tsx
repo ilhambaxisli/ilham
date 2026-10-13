@@ -2,6 +2,7 @@
 import React, { useMemo } from 'react';
 import { X, ArrowLeft, CheckCircle2, TrendingDown, ArrowRight, ShoppingCart, Clock, Calendar } from 'lucide-react';
 import { DiscountProduct, MarketData } from '../types';
+import { parseDateString } from './ProductCard';
 
 interface ProductDetailModalProps {
   isOpen: boolean;
@@ -116,15 +117,21 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   // Format date helper
   const formatEndDate = (dateStr?: string) => {
     if (!dateStr) return null;
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
+    const d = parseDateString(dateStr);
+    if (!d || isNaN(d.getTime())) return dateStr;
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
     return `${day}.${month}.${year}`;
   };
 
-  const effectiveEndDate = product.expiryDate || catalogEndDate;
+  const effectiveEndDate = 
+    product.expiryDate || 
+    (product as any).bitis || 
+    (product as any).bitisTarixi || 
+    (product as any).endDate || 
+    (product as any).expiry_date || 
+    catalogEndDate;
   const formattedEndDate = formatEndDate(effectiveEndDate);
 
   // Image Fallback
