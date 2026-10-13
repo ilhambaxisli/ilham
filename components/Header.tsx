@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ShoppingCart, Plus, Search, Banknote, TrendingDown, Heart } from 'lucide-react';
+import { ShoppingCart, Plus, Search, Banknote, TrendingDown, Heart, X } from 'lucide-react';
 import { MarketData } from '../types';
 
 interface HeaderProps {
@@ -75,9 +75,20 @@ const Header: React.FC<HeaderProps> = ({
                     type="text"
                     value={searchQuery}
                     onChange={(e) => onSearchChange(e.target.value)}
-                    className="block w-full pl-9 pr-3 py-2 bg-transparent border-none focus:ring-0 text-gray-900 placeholder-gray-400 sm:text-sm h-full rounded-lg"
+                    className="block w-full pl-9 pr-9 py-2 bg-transparent border-none focus:ring-0 text-gray-900 placeholder-gray-400 sm:text-sm h-full rounded-lg"
                     placeholder={showFavorites ? "Yadda saxlanılanları axtar..." : "Məhsul axtar..."}
                   />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => onSearchChange('')}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+                      title="Axtarışı təmizlə"
+                      aria-label="Axtarışı təmizlə"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Price Filter */}

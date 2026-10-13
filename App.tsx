@@ -19,18 +19,6 @@ import { RefreshCw, ShoppingBag, ArrowRight, Loader2, Plus, Trash2, Search, Data
 
 const INITIAL_MARKETS: MarketData[] = [
   {
-    id: 'araz',
-    name: 'Araz Market',
-    lastUpdated: new Date().toISOString(),
-    products: [],
-    catalogs: [], 
-    url: 'https://b7x9kq.arazmarket.az/storage/discount-journal/file/01KADDADDGMJZ39KJDHA1R3H38.pdf',
-    themeColor: 'amber', 
-    logoPlaceholder: 'A',
-    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Araz_Supermarket_Logo.svg',
-    instagramPosts: []
-  },
-  {
     id: 'oba',
     name: 'Oba Market',
     lastUpdated: new Date().toISOString(),
@@ -41,8 +29,64 @@ const INITIAL_MARKETS: MarketData[] = [
     logoPlaceholder: 'O',
     logoUrl: 'https://seeklogo.com/images/O/oba-market-logo-3626297371-seeklogo.com.png',
     instagramPosts: []
+  },
+  {
+    id: 'araz',
+    name: 'Araz Market',
+    lastUpdated: new Date().toISOString(),
+    products: [],
+    catalogs: [], 
+    url: 'https://b7x9kq.arazmarket.az/storage/discount-journal/file/01KADDADDGMJZ39KJDHA1R3H38.pdf',
+    themeColor: 'amber', 
+    logoPlaceholder: 'A',
+    logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Araz_Supermarket_Logo.svg',
+    instagramPosts: []
   }
 ];
+
+// Target order: OBA, araz, bravo, al market, tamstore, bazarstore, rahat, neptun, bolmart
+const getMarketSortRank = (market: MarketData): number => {
+  const id = (market.id || '').toLowerCase().trim();
+  const name = (market.name || '').toLowerCase().trim();
+
+  // 1. OBA
+  if (id === 'oba' || name.startsWith('oba') || name.includes('oba')) return 1;
+
+  // 2. araz
+  if (id === 'araz' || name.startsWith('araz') || name.includes('araz')) return 2;
+
+  // 3. bravo
+  if (id === 'bravo' || name.startsWith('bravo') || name.includes('bravo')) return 3;
+
+  // 4. al market
+  if (id === 'al' || id === 'almarket' || id === 'al_market' || name.startsWith('al ') || name === 'al' || name.includes('al market')) return 4;
+
+  // 5. tamstore
+  if (id === 'tamstore' || id === 'tam' || name.includes('tamstore') || name.includes('tam store')) return 5;
+
+  // 6. bazarstore
+  if (id === 'bazarstore' || name.includes('bazarstore') || name.includes('bazar store')) return 6;
+
+  // 7. rahat
+  if (id === 'rahat' || name.includes('rahat')) return 7;
+
+  // 8. neptun
+  if (id === 'neptun' || name.includes('neptun')) return 8;
+
+  // 9. bolmart
+  if (id === 'bolmart' || name.includes('bolmart') || name.includes('bol mart')) return 9;
+
+  return 999;
+};
+
+const sortMarketsByOrder = (marketList: MarketData[]): MarketData[] => {
+  return [...marketList].sort((a, b) => {
+    const rankA = getMarketSortRank(a);
+    const rankB = getMarketSortRank(b);
+    if (rankA !== rankB) return rankA - rankB;
+    return (a.name || '').localeCompare(b.name || '', 'az');
+  });
+};
 
 const INITIAL_BANNER_1: BannerData = {
   id: 'banner-1',
@@ -649,6 +693,8 @@ const App: React.FC = () => {
 
   const handleSelectMarket = (marketId: string | null) => {
     setActiveMarketId(marketId);
+    setSelectedCategoryFilter(null);
+    setActiveCategoryDropdown(null);
     setVisibleDetailCount(24);
     window.scrollTo({ top: 0, behavior: 'auto' });
   };
@@ -679,6 +725,8 @@ const App: React.FC = () => {
   const [viewProduct, setViewProduct] = useState<{product: DiscountProduct, marketName: string, catalogEndDate?: string} | null>(null);
   const [previousViewState, setPreviousViewState] = useState<ViewState | null>(null);
   const [instagramViewerData, setInstagramViewerData] = useState<{posts: string[], name: string, initialIndex: number} | null>(null);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null);
+  const [activeCategoryDropdown, setActiveCategoryDropdown] = useState<string | null>(null);
 
   const handleShowCheaperOnlyChange = (active: boolean) => {
     if (cheaperTimeoutRef.current) {
@@ -802,6 +850,8 @@ const App: React.FC = () => {
       }
       return updatedMarket;
     });
+
+    return sortMarketsByOrder(migrated);
   };
 
   useEffect(() => {
@@ -869,7 +919,8 @@ const App: React.FC = () => {
     persistData(markets, b1, b2);
   };
 
-  const currentMarket = activeMarketId ? markets.find(m => m.id === activeMarketId) : null;
+  const sortedMarkets = useMemo(() => sortMarketsByOrder(markets), [markets]);
+  const currentMarket = activeMarketId ? sortedMarkets.find(m => m.id === activeMarketId) : null;
   const currentCatalogs = currentMarket?.catalogs || [];
   const resolvedActiveCatalogId = activeCatalogId && currentCatalogs.find(c => c.id === activeCatalogId) 
       ? activeCatalogId 
@@ -991,7 +1042,7 @@ const App: React.FC = () => {
 
   const filteredMarketData = useMemo(() => {
     if (showFavorites || deferredCheaperOnly) return [];
-    return markets
+    return sortedMarkets
       .filter(m => { if (activeMarketId) return m.id === activeMarketId; return true; })
       .map(market => {
         const allProducts = market.catalogs ? market.catalogs.flatMap(c => c.products) : (market.products || []);
@@ -1012,7 +1063,7 @@ const App: React.FC = () => {
         return { ...market, filteredProducts: productsWithMeta };
       })
       .filter(m => m.filteredProducts.length > 0 || (activeMarketId && m.id === activeMarketId)); 
-  }, [markets, debouncedSearchQuery, debouncedMaxPrice, deferredCheaperOnly, activeMarketId, showFavorites, productPriceIndex]);
+  }, [sortedMarkets, debouncedSearchQuery, debouncedMaxPrice, deferredCheaperOnly, activeMarketId, showFavorites, productPriceIndex]);
 
   const filterProductForDetail = (product: DiscountProduct) => {
      if (debouncedSearchQuery.length > 0) {
@@ -1216,6 +1267,8 @@ const App: React.FC = () => {
 
   const handleResetApp = () => {
     setActiveMarketId(null);
+    setSelectedCategoryFilter(null);
+    setActiveCategoryDropdown(null);
     setSearchQuery('');
     setDebouncedSearchQuery('');
     setMaxPrice('');
@@ -1407,7 +1460,7 @@ const App: React.FC = () => {
                     </button>
 
                     {/* Market Tags */}
-                    {markets.map((market, index) => {
+                    {sortedMarkets.map((market, index) => {
                       const isSelected = activeMarketId === market.id;
                       const displayName = formatMarketButtonName(market.name);
                       const colorStyle = getMarketButtonStyle(market, index, isSelected);
@@ -1484,7 +1537,7 @@ const App: React.FC = () => {
 
                     {/* Quick horizontal scroll of all market pills */}
                     <div className="flex items-center gap-1 pl-1.5 sm:pl-2 border-l border-gray-200 max-w-[130px] xs:max-w-[180px] sm:max-w-xs md:max-w-md overflow-x-auto scrollbar-hide py-0.5">
-                      {markets.map((m) => {
+                      {sortedMarkets.map((m) => {
                         const isCur = m.id === activeMarketId;
                         const name = formatMarketButtonName(m.name);
                         return (
@@ -1598,6 +1651,7 @@ const App: React.FC = () => {
                                   <ProductCard 
                                     product={product}
                                     accentColor={market?.themeColor || 'gray'}
+                                    catalogEndDate={market?.catalogs?.[0]?.endDate}
                                     isAdmin={isAdmin}
                                     variant="compact"
                                     hasCheaperAlternative={hasCheaper}
@@ -1647,23 +1701,51 @@ const App: React.FC = () => {
                                 ))}
                             </div>
                         ) : (
-                            filteredMarketData.map((market) => (
-                            <div key={market.id} className="bg-white rounded-2xl p-2 sm:p-5 border border-gray-100 shadow-xs mb-5">
-                                <div className="flex items-center gap-3 mb-4 border-b border-gray-50 pb-3">
-                                    <div className={`w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center overflow-hidden`}>
-                                        {market.logoUrl ? <img src={market.logoUrl} alt={market.name} className="w-full h-full object-contain p-1" /> : <span className={`text-${market.themeColor}-700 font-bold`}>{market.logoPlaceholder}</span>}
+                            filteredMarketData.map((market) => {
+                              const marketEndDate = market.catalogs?.[0]?.endDate;
+                              return (
+                                <div key={market.id} className="bg-white rounded-2xl p-2 sm:p-5 border border-gray-100 shadow-xs mb-5">
+                                    {/* Sticky Market Header in search results */}
+                                    <div 
+                                      style={{ top: `${stickyHeaderHeight}px` }}
+                                      className="sticky z-20 bg-white/95 backdrop-blur-md -mx-2 sm:-mx-5 px-3 sm:px-5 py-2.5 mb-4 border-b border-gray-100 flex items-center justify-between shadow-2xs transition-[top] duration-150 rounded-t-2xl"
+                                    >
+                                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+                                              {market.logoUrl ? <img src={market.logoUrl} alt={market.name} className="w-full h-full object-contain p-1" /> : <span className={`text-${market.themeColor}-700 font-bold text-sm sm:text-base`}>{market.logoPlaceholder}</span>}
+                                          </div>
+                                          <div className="min-w-0">
+                                              <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate tracking-tight">{market.name}</h3>
+                                              <p className="text-[10px] sm:text-xs text-gray-400 font-medium">Axtarış üzrə market nəticələri</p>
+                                          </div>
+                                      </div>
+                                      <span className="text-xs sm:text-sm font-bold bg-gray-100 text-gray-600 px-2.5 sm:px-3 py-1 rounded-full shrink-0">
+                                        {market.filteredProducts.length} məhsul
+                                      </span>
                                     </div>
-                                    <h3 className="text-xl font-bold text-gray-800">{market.name}</h3>
-                                    <span className="text-sm bg-gray-100 text-gray-500 px-3 py-1 rounded-full">{market.filteredProducts.length} məhsul</span>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
+                                    {market.filteredProducts.slice(0, visibleProductCount).map((product, index) => {
+                                        const fav = isFavorite(product.productName || '', market.id);
+                                        return (
+                                          <ProductCard 
+                                            key={`${market.id}-${product.productName}-${index}`} 
+                                            product={product} 
+                                            accentColor={market.themeColor} 
+                                            catalogEndDate={marketEndDate}
+                                            isAdmin={isAdmin} 
+                                            variant="compact" 
+                                            hasCheaperAlternative={(product as any)._hasCheaper} 
+                                            onClick={() => !isAdmin && setViewProduct({ product, marketName: market.name, catalogEndDate: marketEndDate })} 
+                                            onEdit={() => handleEditFromSearch(product, market.id)} 
+                                            isFavorite={fav} 
+                                            onToggleFavorite={() => toggleFavorite(product, market.id)} 
+                                          />
+                                        );
+                                    })}
+                                    </div>
                                 </div>
-                                <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4`}>
-                                {market.filteredProducts.slice(0, visibleProductCount).map((product, index) => {
-                                    const fav = isFavorite(product.productName || '', market.id);
-                                    return <ProductCard key={`${market.id}-${product.productName}-${index}`} product={product} accentColor={market.themeColor} isAdmin={isAdmin} variant="compact" hasCheaperAlternative={(product as any)._hasCheaper} onClick={() => !isAdmin && setViewProduct({ product, marketName: market.name, catalogEndDate: market.catalogs?.[0]?.endDate })} onEdit={() => handleEditFromSearch(product, market.id)} isFavorite={fav} onToggleFavorite={() => toggleFavorite(product, market.id)} />;
-                                })}
-                                </div>
-                            </div>
-                            ))
+                              );
+                            })
                         )}
                     </div>
                   </div>
@@ -1671,7 +1753,7 @@ const App: React.FC = () => {
                   <>
                     {activeMarketId === null ? (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 animate-[fadeIn_0.5s_ease-out]">
-                         {markets.map((market, marketIdx) => {
+                         {sortedMarkets.map((market, marketIdx) => {
                            const previewCatalog = market.catalogs && market.catalogs.length > 0 ? market.catalogs[0] : null;
                            const allMarketProducts = (market.catalogs && market.catalogs.length > 0)
                              ? market.catalogs.flatMap(c => c.products || [])
@@ -1712,7 +1794,7 @@ const App: React.FC = () => {
                                <div className="grid grid-cols-3 gap-2 sm:gap-2.5 mb-2.5 sm:mb-3">
                                   {(previewProducts || []).slice(0, 3).map((product, idx) => (
                                     <div key={`${market.id}-preview-${idx}`} className="block h-full">
-                                      <ProductCard product={product} accentColor={market.themeColor} isAdmin={isAdmin} variant="compact" onClick={() => !isAdmin && handleSelectMarket(market.id)} onEdit={() => { setActiveMarketId(market.id); setActiveCatalogId(previewCatalog?.id || null); setProductToEdit({ product, index: idx, catalogId: previewCatalog?.id }); }} isFavorite={isFavorite(product.productName || "", market.id)} onToggleFavorite={() => toggleFavorite(product, market.id)} />
+                                      <ProductCard product={product} accentColor={market.themeColor} catalogEndDate={previewCatalog?.endDate} hideCountdown={true} isAdmin={isAdmin} variant="compact" onClick={() => !isAdmin && handleSelectMarket(market.id)} onEdit={() => { setActiveMarketId(market.id); setActiveCatalogId(previewCatalog?.id || null); setProductToEdit({ product, index: idx, catalogId: previewCatalog?.id }); }} isFavorite={isFavorite(product.productName || "", market.id)} onToggleFavorite={() => toggleFavorite(product, market.id)} />
                                     </div>
                                   ))}
                                </div>
@@ -1794,7 +1876,7 @@ const App: React.FC = () => {
                     ) : (
                       <div className="animate-[fadeIn_0.3s_ease-out]">
                         {(() => {
-                          const mkt = markets.find(m => m.id === activeMarketId) || markets[0];
+                          const mkt = sortedMarkets.find(m => m.id === activeMarketId) || sortedMarkets[0];
                           if (!mkt) return null;
                           const mktCatalogs = mkt.catalogs || [];
                           const selectedCatId = activeCatalogByMarket[mkt.id] || (mktCatalogs[0]?.id || null);
@@ -1803,17 +1885,29 @@ const App: React.FC = () => {
                           const mktProducts = mktCatalog ? mktCatalog.products : (mkt.products || []);
                           const mktFilteredProducts = mktProducts.filter(filterProductForDetail);
                           const mktAccent = mkt.themeColor || 'green';
-                          const displayedProducts = mktFilteredProducts.slice(0, visibleDetailCount);
-                          const hasMore = visibleDetailCount < mktFilteredProducts.length;
 
-                          // Categorization logic: group by category if categories exist, else flat list
-                          const distinctCategories = Array.from(
-                            new Set(displayedProducts.map(p => (p.category || '').trim()).filter(Boolean))
-                          );
-                          const hasCategories = distinctCategories.length > 0 && !(distinctCategories.length === 1 && distinctCategories[0].toLowerCase() === 'digər');
+                          // All categories with their product counts in this catalog
+                          const allCategoriesWithCounts = (() => {
+                            const map = new Map<string, number>();
+                            mktFilteredProducts.forEach(p => {
+                              const cat = (p.category || 'Digər').trim() || 'Digər';
+                              map.set(cat, (map.get(cat) || 0) + 1);
+                            });
+                            return Array.from(map.entries()).map(([name, count]) => ({ name, count }));
+                          })();
+                          const hasCategories = allCategoriesWithCounts.length > 0 && !(allCategoriesWithCounts.length === 1 && allCategoriesWithCounts[0].name.toLowerCase() === 'digər');
 
+                          // Filter by selected category if user selected one
+                          const effectiveProducts = (selectedCategoryFilter && hasCategories)
+                            ? mktFilteredProducts.filter(p => (p.category || 'Digər').trim() === selectedCategoryFilter)
+                            : mktFilteredProducts;
+
+                          const displayedProducts = effectiveProducts.slice(0, visibleDetailCount);
+                          const hasMore = visibleDetailCount < effectiveProducts.length;
+
+                          // Grouping by category when all categories are shown
                           const groupedProductsByCategory: { category: string; products: { product: DiscountProduct; originalIndex: number }[] }[] = [];
-                          if (hasCategories) {
+                          if (hasCategories && !selectedCategoryFilter) {
                             const catMap = new Map<string, { category: string; products: { product: DiscountProduct; originalIndex: number }[] }>();
                             displayedProducts.forEach((product, idx) => {
                               const cat = (product.category || 'Digər').trim() || 'Digər';
@@ -1833,7 +1927,6 @@ const App: React.FC = () => {
                               className="scroll-mt-24 sm:scroll-mt-28"
                             >
 
-
                               {/* Multi-Catalog Tabs ONLY if there are multiple catalogs (> 1) - eliminates single "Əsas Kataloq" tab */}
                               {mktCatalogs.length > 1 && (
                                 <div className="mb-3 border-b border-gray-200 overflow-x-auto scrollbar-hide">
@@ -1846,6 +1939,7 @@ const App: React.FC = () => {
                                           key={catalog.id}
                                           onClick={() => {
                                             setActiveCatalogByMarket(prev => ({ ...prev, [mkt.id]: catalog.id }));
+                                            setSelectedCategoryFilter(null);
                                             setVisibleDetailCount(24);
                                           }}
                                           className={`whitespace-nowrap px-4 py-2 rounded-t-xl font-bold text-xs transition-all flex items-center gap-2 ${isCatActive ? `bg-white text-${mktAccent}-700 border border-gray-200 border-b-white shadow-xs` : 'text-gray-500 hover:text-gray-700'}`}
@@ -1864,46 +1958,263 @@ const App: React.FC = () => {
                                 </div>
                               )}
 
-                              {/* Products Grid for this market (grouped by category if present, or normal list) */}
+                              {/* Products Grid for this market */}
                               {displayedProducts.length > 0 ? (
                                 hasCategories ? (
-                                  <div className="space-y-6 sm:space-y-8">
-                                    {groupedProductsByCategory.map((group) => (
-                                      <div key={group.category} className="space-y-2.5 sm:space-y-3">
-                                        {/* Category Header (Sticky right below market header) */}
+                                  selectedCategoryFilter ? (
+                                    /* Single Category Filtered View */
+                                    <div className="space-y-3">
+                                      {/* Category Header (Sticky right below market header, clickable to toggle categories list) */}
+                                      <div className="relative">
                                         <div 
                                           style={{ top: `${stickyHeaderHeight}px` }}
-                                          className="sticky z-20 bg-white/95 backdrop-blur-md -mx-2 sm:-mx-4 px-2 sm:px-4 py-2 border-b border-gray-100 flex items-center justify-between gap-2 shadow-2xs transition-[top] duration-150"
+                                          onClick={() => setActiveCategoryDropdown(prev => prev === 'filter' ? null : 'filter')}
+                                          role="button"
+                                          tabIndex={0}
+                                          title="Kateqoriyanı dəyişmək üçün klikləyin"
+                                          className="sticky z-20 bg-white/95 backdrop-blur-md -mx-2 sm:-mx-4 px-2 sm:px-4 py-2 border-b border-gray-100 flex items-center justify-between gap-2 shadow-2xs transition-[top] duration-150 cursor-pointer hover:bg-gray-50/80 active:bg-gray-100 select-none group"
                                         >
                                           <div className="flex items-center gap-2 min-w-0">
-                                            <div className={`w-1.5 h-4 sm:h-5 rounded-full bg-${mktAccent}-600 shrink-0`}></div>
-                                            <h3 className="font-black text-sm sm:text-base text-gray-800 tracking-tight truncate">
-                                              {group.category}
+                                            <div className={`w-1.5 h-4 sm:h-5 rounded-full bg-${mktAccent}-600 shrink-0 group-hover:scale-y-110 transition-transform`}></div>
+                                            <h3 className="font-black text-sm sm:text-base text-gray-800 tracking-tight truncate flex items-center gap-1.5">
+                                              <span>{selectedCategoryFilter}</span>
+                                              <ChevronDown className={`w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 transition-transform duration-200 ${activeCategoryDropdown === 'filter' ? 'rotate-180 text-gray-800' : ''}`} />
                                             </h3>
                                           </div>
-                                          <span className="text-[10px] sm:text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
-                                            {group.products.length} məhsul
-                                          </span>
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            <span className="text-[10px] sm:text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                              {displayedProducts.length} məhsul
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedCategoryFilter(null);
+                                                setActiveCategoryDropdown(null);
+                                                setVisibleDetailCount(24);
+                                              }}
+                                              className="text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-full transition-colors flex items-center gap-1 cursor-pointer"
+                                              title="Bütün kateqoriyaları göstər"
+                                            >
+                                              <X className="w-3 h-3" /> Hamısı
+                                            </button>
+                                          </div>
                                         </div>
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3.5 md:gap-4">
-                                          {group.products.map(({ product, originalIndex }) => (
-                                            <ProductCard 
-                                              key={`${mkt.id}-${product.productName}-${originalIndex}`} 
-                                              product={product} 
-                                              accentColor={mktAccent} 
-                                              isAdmin={isAdmin} 
-                                              variant="compact"
-                                              hasCheaperAlternative={checkForCheaperAlternative(product, mkt.id)} 
-                                              onClick={() => !isAdmin && setViewProduct({ product, marketName: mkt.name, catalogEndDate: mktCatalog?.endDate })} 
-                                              onEdit={() => { setActiveMarketId(mkt.id); setProductToEdit({ product, index: originalIndex, catalogId: selectedCatId || undefined }); }} 
-                                              isFavorite={isFavorite(product.productName || '', mkt.id)} 
-                                              onToggleFavorite={() => toggleFavorite(product, mkt.id)} 
+
+                                        {/* Simple vertical list of category names right underneath the clicked text */}
+                                        {activeCategoryDropdown === 'filter' && (
+                                          <div className="relative z-30">
+                                            {/* Click outside to close (transparent, non-blocking backdrop) */}
+                                            <div 
+                                              className="fixed inset-0 z-20" 
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveCategoryDropdown(null);
+                                              }} 
                                             />
-                                          ))}
-                                        </div>
+                                            <div className="absolute left-0 top-1 w-full max-w-xs sm:max-w-sm bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-30 max-h-72 overflow-y-auto animate-[fadeIn_0.15s_ease-out]">
+                                              <div className="px-3 py-1.5 border-b border-gray-100 flex items-center justify-between text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                                                <span>Kateqoriyalar</span>
+                                                <button 
+                                                  type="button"
+                                                  onClick={(e) => { e.stopPropagation(); setActiveCategoryDropdown(null); }}
+                                                  className="text-gray-400 hover:text-gray-600 p-0.5"
+                                                >
+                                                  <X className="w-3.5 h-3.5" />
+                                                </button>
+                                              </div>
+                                              
+                                              {/* Hamısı Option */}
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setSelectedCategoryFilter(null);
+                                                  setActiveCategoryDropdown(null);
+                                                  setVisibleDetailCount(24);
+                                                }}
+                                                className="w-full text-left px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center justify-between transition-colors cursor-pointer border-b border-gray-50"
+                                              >
+                                                <span className="font-bold text-blue-600">Hamısı (Bütün məhsullar)</span>
+                                                <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full">
+                                                  {mktFilteredProducts.length}
+                                                </span>
+                                              </button>
+
+                                              {/* Individual categories alt alta */}
+                                              {allCategoriesWithCounts.map(cat => {
+                                                const isCurrent = selectedCategoryFilter === cat.name;
+                                                return (
+                                                  <button
+                                                    key={cat.name}
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setSelectedCategoryFilter(cat.name);
+                                                      setActiveCategoryDropdown(null);
+                                                      setVisibleDetailCount(24);
+                                                    }}
+                                                    className={`w-full text-left px-3.5 py-2 text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
+                                                      isCurrent 
+                                                        ? 'bg-gray-100 font-bold text-gray-900' 
+                                                        : 'text-gray-700 hover:bg-gray-50'
+                                                    }`}
+                                                  >
+                                                    <span className="truncate">{cat.name}</span>
+                                                    <span className="text-[10px] text-gray-500 bg-gray-100 font-semibold px-2 py-0.5 rounded-full ml-2 shrink-0">
+                                                      {cat.count}
+                                                    </span>
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
-                                    ))}
-                                  </div>
+                                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3.5 md:gap-4">
+                                        {displayedProducts.map((product, idx) => (
+                                          <ProductCard 
+                                            key={`${mkt.id}-${product.productName}-${idx}`} 
+                                            product={product} 
+                                            accentColor={mktAccent} 
+                                            catalogEndDate={mktCatalog?.endDate}
+                                            isAdmin={isAdmin} 
+                                            variant="compact"
+                                            hasCheaperAlternative={checkForCheaperAlternative(product, mkt.id)} 
+                                            onClick={() => !isAdmin && setViewProduct({ product, marketName: mkt.name, catalogEndDate: mktCatalog?.endDate })} 
+                                            onEdit={() => { setActiveMarketId(mkt.id); setProductToEdit({ product, index: idx, catalogId: selectedCatId || undefined }); }} 
+                                            isFavorite={isFavorite(product.productName || '', mkt.id)} 
+                                            onToggleFavorite={() => toggleFavorite(product, mkt.id)} 
+                                          />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    /* Grouped by Categories View (Sticky category headers, clickable to toggle categories list) */
+                                    <div className="space-y-6 sm:space-y-8">
+                                      {groupedProductsByCategory.map((group) => {
+                                        const isThisDropdownOpen = activeCategoryDropdown === group.category;
+                                        return (
+                                          <div key={group.category} className="space-y-2.5 sm:space-y-3">
+                                            {/* Category Header (Sticky right below market header, clickable to toggle categories list) */}
+                                            <div className="relative">
+                                              <div 
+                                                style={{ top: `${stickyHeaderHeight}px` }}
+                                                onClick={() => setActiveCategoryDropdown(prev => prev === group.category ? null : group.category)}
+                                                role="button"
+                                                tabIndex={0}
+                                                title="Bütün kateqoriyaları gör və seç"
+                                                className="sticky z-20 bg-white/95 backdrop-blur-md -mx-2 sm:-mx-4 px-2 sm:px-4 py-2 border-b border-gray-100 flex items-center justify-between gap-2 shadow-2xs transition-[top] duration-150 cursor-pointer hover:bg-gray-50/80 active:bg-gray-100 select-none group"
+                                              >
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                  <div className={`w-1.5 h-4 sm:h-5 rounded-full bg-${mktAccent}-600 shrink-0 group-hover:scale-y-110 transition-transform`}></div>
+                                                  <h3 className="font-black text-sm sm:text-base text-gray-800 tracking-tight truncate flex items-center gap-1.5">
+                                                    <span>{group.category}</span>
+                                                    <ChevronDown className={`w-3.5 h-3.5 text-gray-400 group-hover:text-gray-700 transition-transform duration-200 ${isThisDropdownOpen ? 'rotate-180 text-gray-800' : ''}`} />
+                                                  </h3>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                  <span className="text-[10px] sm:text-xs font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                    {group.products.length} məhsul
+                                                  </span>
+                                                  <span className="text-[10px] font-bold text-gray-500 bg-gray-50 group-hover:bg-gray-100 px-2 py-0.5 rounded-full transition-colors flex items-center gap-1">
+                                                    Kateqoriyalar <ChevronDown className="w-2.5 h-2.5" />
+                                                  </span>
+                                                </div>
+                                              </div>
+
+                                              {/* Simple vertical list of category names right underneath the clicked text */}
+                                              {isThisDropdownOpen && (
+                                                <div className="relative z-30">
+                                                  {/* Click outside to close (transparent, non-blocking backdrop) */}
+                                                  <div 
+                                                    className="fixed inset-0 z-20" 
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setActiveCategoryDropdown(null);
+                                                    }} 
+                                                  />
+                                                  <div className="absolute left-0 top-1 w-full max-w-xs sm:max-w-sm bg-white rounded-xl shadow-xl border border-gray-200 py-1 z-30 max-h-72 overflow-y-auto animate-[fadeIn_0.15s_ease-out]">
+                                                    <div className="px-3 py-1.5 border-b border-gray-100 flex items-center justify-between text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                                                      <span>Kateqoriyalar</span>
+                                                      <button 
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); setActiveCategoryDropdown(null); }}
+                                                        className="text-gray-400 hover:text-gray-600 p-0.5"
+                                                      >
+                                                        <X className="w-3.5 h-3.5" />
+                                                      </button>
+                                                    </div>
+                                                    
+                                                    {/* Hamısı Option */}
+                                                    <button
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedCategoryFilter(null);
+                                                        setActiveCategoryDropdown(null);
+                                                        setVisibleDetailCount(24);
+                                                      }}
+                                                      className="w-full text-left px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center justify-between transition-colors cursor-pointer border-b border-gray-50"
+                                                    >
+                                                      <span className="font-bold text-blue-600">Hamısı (Bütün məhsullar)</span>
+                                                      <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full">
+                                                        {mktFilteredProducts.length}
+                                                      </span>
+                                                    </button>
+
+                                                    {/* Individual categories alt alta */}
+                                                    {allCategoriesWithCounts.map(cat => {
+                                                      const isCurrent = group.category === cat.name;
+                                                      return (
+                                                        <button
+                                                          key={cat.name}
+                                                          type="button"
+                                                          onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedCategoryFilter(cat.name);
+                                                            setActiveCategoryDropdown(null);
+                                                            setVisibleDetailCount(24);
+                                                          }}
+                                                          className={`w-full text-left px-3.5 py-2 text-xs font-medium flex items-center justify-between transition-colors cursor-pointer ${
+                                                            isCurrent 
+                                                              ? 'bg-gray-100 font-bold text-gray-900' 
+                                                              : 'text-gray-700 hover:bg-gray-50'
+                                                          }`}
+                                                        >
+                                                          <span className="truncate">{cat.name}</span>
+                                                          <span className="text-[10px] text-gray-500 bg-gray-100 font-semibold px-2 py-0.5 rounded-full ml-2 shrink-0">
+                                                            {cat.count}
+                                                          </span>
+                                                        </button>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3.5 md:gap-4">
+                                              {group.products.map(({ product, originalIndex }) => (
+                                                <ProductCard 
+                                                  key={`${mkt.id}-${product.productName}-${originalIndex}`} 
+                                                  product={product} 
+                                                  accentColor={mktAccent} 
+                                                  catalogEndDate={mktCatalog?.endDate}
+                                                  isAdmin={isAdmin} 
+                                                  variant="compact"
+                                                  hasCheaperAlternative={checkForCheaperAlternative(product, mkt.id)} 
+                                                  onClick={() => !isAdmin && setViewProduct({ product, marketName: mkt.name, catalogEndDate: mktCatalog?.endDate })} 
+                                                  onEdit={() => { setActiveMarketId(mkt.id); setProductToEdit({ product, index: originalIndex, catalogId: selectedCatId || undefined }); }} 
+                                                  isFavorite={isFavorite(product.productName || '', mkt.id)} 
+                                                  onToggleFavorite={() => toggleFavorite(product, mkt.id)} 
+                                                />
+                                              ))}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )
                                 ) : (
                                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3.5 md:gap-4">
                                     {displayedProducts.map((product, index) => (
@@ -1911,6 +2222,7 @@ const App: React.FC = () => {
                                         key={`${mkt.id}-${product.productName}-${index}`} 
                                         product={product} 
                                         accentColor={mktAccent} 
+                                        catalogEndDate={mktCatalog?.endDate}
                                         isAdmin={isAdmin} 
                                         variant="compact"
                                         hasCheaperAlternative={checkForCheaperAlternative(product, mkt.id)} 
@@ -1924,9 +2236,18 @@ const App: React.FC = () => {
                                 )
                               ) : (
                                 <div className="text-center py-16 bg-white rounded-2xl border border-gray-100 text-gray-400">
-                                  <p className="text-sm font-medium">Bu marketdə heç bir məhsul tapılmadı.</p>
+                                  <p className="text-sm font-medium">Bu kateqoriyada heç bir məhsul tapılmadı.</p>
+                                  {selectedCategoryFilter && (
+                                    <button
+                                      onClick={() => setSelectedCategoryFilter(null)}
+                                      className="mt-3 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition-colors"
+                                    >
+                                      Bütün kateqoriyaları göstər
+                                    </button>
+                                  )}
                                 </div>
                               )}
+
 
                               {/* Infinite Scroll / Lazy Load Sentinel */}
                               {hasMore && (
@@ -1975,6 +2296,7 @@ const App: React.FC = () => {
           marketName={instagramViewerData?.name || ''} 
           initialIndex={instagramViewerData?.initialIndex || 0}
         />
+
     </>
   );
 };

@@ -22,6 +22,8 @@ import {
 interface ProductCardProps {
   product: DiscountProduct;
   accentColor: string;
+  catalogEndDate?: string;
+  hideCountdown?: boolean;
   isAdmin?: boolean;
   hasCheaperAlternative?: boolean; 
   isHighlighted?: boolean;
@@ -53,12 +55,14 @@ const getCategoryIcon = (category: ProductCategory, isCompact: boolean) => {
 const ProductCard: React.FC<ProductCardProps> = ({ 
   product, 
   accentColor, 
+  catalogEndDate,
+  hideCountdown = false,
   isAdmin, 
   hasCheaperAlternative,
   isHighlighted,
   id,
   onEdit, 
-  onClick,
+  onClick, 
   variant = 'compact',
   isFavorite,
   onToggleFavorite
@@ -139,13 +143,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
             {product.productName}
           </h3>
           
-          {/* Expiry Date Display if present */}
-          {product.expiryDate && !isMini && (
-             <div className="flex items-center gap-1 text-[8.5px] text-gray-400 mt-1">
-                <Clock className="w-2.5 h-2.5 text-amber-500 shrink-0" />
-                <span className="truncate">Bitmə: {new Date(product.expiryDate).toLocaleDateString('az-AZ')}</span>
-             </div>
-          )}
           
           {hasCheaperAlternative && (
             <div className={isMini ? "mt-0.5" : "mt-1"}>
@@ -157,8 +154,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
           )}
         </div>
         
-        <div className="mt-1.5 pt-1 border-t border-gray-100 flex items-baseline justify-between gap-1">
-          <div className="flex items-baseline gap-1.5 flex-nowrap whitespace-nowrap overflow-hidden">
+        <div className="mt-1.5 pt-1 border-t border-gray-100 flex items-center justify-between gap-1">
+          {/* Left: Prices */}
+          <div className="flex items-baseline gap-1.5 flex-nowrap whitespace-nowrap overflow-hidden min-w-0">
             <span className={`font-black text-${accentColor}-600 leading-none text-[15px] sm:text-base shrink-0 whitespace-nowrap`}>
               {product.newPrice} <span className="text-[0.75em] font-bold">₼</span>
             </span>
@@ -168,6 +166,56 @@ const ProductCard: React.FC<ProductCardProps> = ({
               </span>
             )}
           </div>
+
+          {/* Right: Clock Icon & Remaining Days badge (hidden when hideCountdown is true) */}
+          {!hideCountdown && (() => {
+            const rawEndDate = product.expiryDate || catalogEndDate;
+            let daysLeft: number | null = null;
+            if (rawEndDate) {
+              const target = new Date(rawEndDate);
+              if (!isNaN(target.getTime())) {
+                const now = new Date();
+                const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+                const targetMid = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
+                daysLeft = Math.round((targetMid - todayMid) / (1000 * 60 * 60 * 24));
+              }
+            }
+
+            // Colors based on user spec:
+            // 1g (<=1) -> red
+            // 2g (==2) -> yellow/amber
+            // 3g and above (>=3) -> black
+            let badgeStyle = "text-gray-900 bg-gray-100 border-gray-200";
+            let iconColor = "text-gray-500";
+            if (daysLeft !== null) {
+              if (daysLeft <= 1) {
+                badgeStyle = "text-red-700 bg-red-50 border-red-200/90";
+                iconColor = "text-red-600";
+              } else if (daysLeft === 2) {
+                badgeStyle = "text-amber-800 bg-amber-50 border-amber-300";
+                iconColor = "text-amber-600";
+              } else {
+                badgeStyle = "text-gray-900 bg-gray-100 border-gray-200";
+                iconColor = "text-gray-700";
+              }
+            }
+
+            return (
+              <div 
+                className="flex items-center gap-0.5 sm:gap-1 shrink-0 select-none"
+                title={rawEndDate ? `Endirimin bitməsinə qalan gün: ${daysLeft !== null && daysLeft >= 0 ? `${daysLeft} gün` : 'Bitib'}` : 'Müddətsiz endirim'}
+              >
+                <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center shrink-0">
+                  <Clock className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${iconColor}`} strokeWidth={2.2} />
+                </div>
+                {daysLeft !== null && (
+                  <span className={`text-[9px] sm:text-[10px] font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded border leading-none shrink-0 ${badgeStyle}`}>
+                    {daysLeft <= 0 ? '0g' : `${daysLeft}g`}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
