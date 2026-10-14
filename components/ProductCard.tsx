@@ -52,14 +52,47 @@ const getCategoryIcon = (category: ProductCategory, isCompact: boolean) => {
   }
 };
 
+export const extractProductEndDate = (product: any, catalogEndDate?: string): string | undefined => {
+  if (!product) return catalogEndDate;
+  if (product.expiryDate) return String(product.expiryDate).trim();
+  if (product.bitis) return String(product.bitis).trim();
+  if (product.bitisTarixi) return String(product.bitisTarixi).trim();
+  if (product.bitis_tarixi) return String(product.bitis_tarixi).trim();
+  if (product.bitis_tarix) return String(product.bitis_tarix).trim();
+  if (product.endDate) return String(product.endDate).trim();
+  if (product.end_date) return String(product.end_date).trim();
+  if (product.expiry_date) return String(product.expiry_date).trim();
+  if (product.son_tarix) return String(product.son_tarix).trim();
+  if (product.sonTarix) return String(product.sonTarix).trim();
+  
+  for (const k of Object.keys(product)) {
+    const lk = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (lk.includes('bitis') || lk.includes('bitme') || lk.includes('sontarix') || lk === 'enddate' || lk === 'expirydate') {
+      const v = product[k];
+      if (v !== undefined && v !== null && String(v).trim() !== '') {
+        return String(v).trim();
+      }
+    }
+  }
+
+  return catalogEndDate;
+};
+
 export const parseDateString = (rawDate: any): Date | null => {
   if (!rawDate) return null;
   if (rawDate instanceof Date) return isNaN(rawDate.getTime()) ? null : rawDate;
   const str = String(rawDate).trim();
   if (!str) return null;
 
-  // Handle YYYY-MM-DD (e.g. "2026-10-21")
-  const ymdMatch = str.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+  // Numeric timestamp (e.g. 1729000000000 or 1729000000)
+  if (/^\d{10,13}$/.test(str)) {
+    const num = parseInt(str, 10);
+    const d = new Date(str.length === 10 ? num * 1000 : num);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // Handle YYYY-MM-DD, YYYY.MM.DD, YYYY/MM/DD
+  const ymdMatch = str.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
   if (ymdMatch) {
     const year = parseInt(ymdMatch[1], 10);
     const month = parseInt(ymdMatch[2], 10) - 1;
@@ -68,8 +101,8 @@ export const parseDateString = (rawDate: any): Date | null => {
     if (!isNaN(d.getTime())) return d;
   }
 
-  // Handle DD.MM.YYYY or DD/MM/YYYY or DD-MM-YYYY (e.g. "21.10.2026")
-  const dmyMatch = str.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
+  // Handle DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY
+  const dmyMatch = str.match(/(\d{1,2})[./-](\d{1,2})[./-](\d{4})/);
   if (dmyMatch) {
     const day = parseInt(dmyMatch[1], 10);
     const month = parseInt(dmyMatch[2], 10) - 1;
@@ -78,9 +111,119 @@ export const parseDateString = (rawDate: any): Date | null => {
     if (!isNaN(d.getTime())) return d;
   }
 
+  // Handle DD.MM.YY (2-digit year)
+  const dmy2Match = str.match(/(\d{1,2})[./-](\d{1,2})[./-](\d{2})$/);
+  if (dmy2Match) {
+    const day = parseInt(dmy2Match[1], 10);
+    const month = parseInt(dmy2Match[2], 10) - 1;
+    const year = 2000 + parseInt(dmy2Match[3], 10);
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // Handle DD.MM (no year, e.g. 21.10)
+  const dmMatch = str.match(/^(\d{1,2})[./-](\d{1,2})$/);
+  if (dmMatch) {
+    const day = parseInt(dmMatch[1], 10);
+    const month = parseInt(dmMatch[2], 10) - 1;
+    const nowYear = new Date().getFullYear();
+    const d = new Date(nowYear, month, day);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // Handle Azerbaijani / Turkish / English month names
+  const monthMap: Record<string, number> = {
+    'yanvar': 0, 'ocak': 0, 'january': 0,
+    'fevral': 1, 'subat': 1, 'şubat': 1, 'february': 1,
+    'mart': 2, 'march': 2,
+    'aprel': 3, 'nisan': 3, 'april': 3,
+    'may': 4, 'mayis': 4, 'mayıs': 4,
+    'iyun': 5, 'haziran': 5, 'june': 5,
+    'iyul': 6, 'temmuz': 6, 'july': 6,
+    'avqust': 7, 'agustos': 7, 'ağustos': 7, 'august': 7,
+    'sentyabr': 8, 'eylul': 8, 'eylül': 8, 'september': 8,
+    'oktyabr': 9, 'ekim': 9, 'october': 9,
+    'noyabr': 10, 'kasim': 10, 'kasım': 10, 'november': 10,
+    'dekabr': 11, 'aralik': 11, 'aralık': 11, 'december': 11
+  };
+  const lower = str.toLowerCase();
+  for (const [mName, mIdx] of Object.entries(monthMap)) {
+    if (lower.includes(mName)) {
+      const dayMatch = lower.match(/(\d{1,2})\s+/);
+      const yearMatch = lower.match(/\s+(\d{4})/);
+      const day = dayMatch ? parseInt(dayMatch[1], 10) : 1;
+      const year = yearMatch ? parseInt(yearMatch[1], 10) : new Date().getFullYear();
+      const d = new Date(year, mIdx, day);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+
   const d = new Date(str);
   if (!isNaN(d.getTime())) return d;
   return null;
+};
+
+export interface CountdownInfo {
+  daysLeft: number;
+  label: string;
+  badgeStyle: string;
+  iconColor: string;
+  formattedDate: string;
+}
+
+export const calculateDaysLeft = (rawEndDate: any): CountdownInfo | null => {
+  if (!rawEndDate) return null;
+  const target = parseDateString(rawEndDate);
+  if (!target) return null;
+
+  const now = new Date();
+  
+  // Year alignment: If target year is in a future year like 2026, but current browser year is different,
+  // align target's year to now.getFullYear() so countdown matches the brochure's actual day & month
+  let effectiveTarget = new Date(target);
+  if (Math.abs(effectiveTarget.getFullYear() - now.getFullYear()) > 1) {
+    effectiveTarget.setFullYear(now.getFullYear());
+    const diffDays = Math.round((effectiveTarget.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < -90) {
+      effectiveTarget.setFullYear(now.getFullYear() + 1);
+    }
+  }
+
+  const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const targetMid = new Date(effectiveTarget.getFullYear(), effectiveTarget.getMonth(), effectiveTarget.getDate()).getTime();
+  const daysLeft = Math.round((targetMid - todayMid) / (1000 * 60 * 60 * 24));
+
+  const dayStr = String(effectiveTarget.getDate()).padStart(2, '0');
+  const monthStr = String(effectiveTarget.getMonth() + 1).padStart(2, '0');
+  const formattedDate = `${dayStr}.${monthStr}.${effectiveTarget.getFullYear()}`;
+
+  let label = `${daysLeft} gün`;
+  let badgeStyle = "text-gray-800 bg-gray-100 border-gray-200";
+  let iconColor = "text-gray-600";
+
+  if (daysLeft < 0) {
+    label = "Bitib";
+    badgeStyle = "text-gray-500 bg-gray-100 border-gray-200";
+    iconColor = "text-gray-400";
+  } else if (daysLeft === 0) {
+    label = "Son gün";
+    badgeStyle = "text-red-700 bg-red-50 border-red-200";
+    iconColor = "text-red-600";
+  } else if (daysLeft === 1) {
+    label = "1 gün";
+    badgeStyle = "text-red-700 bg-red-50 border-red-200";
+    iconColor = "text-red-600";
+  } else if (daysLeft === 2) {
+    label = "2 gün";
+    badgeStyle = "text-amber-800 bg-amber-50 border-amber-300";
+    iconColor = "text-amber-600";
+  } else {
+    label = `${daysLeft} gün`;
+    badgeStyle = "text-gray-800 bg-gray-100 border-gray-200";
+    iconColor = "text-gray-600";
+  }
+
+  return { daysLeft, label, badgeStyle, iconColor, formattedDate };
 };
 
 const ProductCard: React.FC<ProductCardProps> = ({ 
@@ -200,57 +343,22 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* Right: Clock Icon & Remaining Days badge (hidden when hideCountdown is true) */}
           {!hideCountdown && (() => {
-            const rawEndDate = 
-              product.expiryDate || 
-              (product as any).bitis || 
-              (product as any).bitisTarixi || 
-              (product as any).endDate || 
-              (product as any).expiry_date || 
-              catalogEndDate;
+            const rawEndDate = extractProductEndDate(product, catalogEndDate);
+            const countdownInfo = calculateDaysLeft(rawEndDate);
 
-            let daysLeft: number | null = null;
-            if (rawEndDate) {
-              const target = parseDateString(rawEndDate);
-              if (target) {
-                const now = new Date();
-                const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-                const targetMid = new Date(target.getFullYear(), target.getMonth(), target.getDate()).getTime();
-                daysLeft = Math.round((targetMid - todayMid) / (1000 * 60 * 60 * 24));
-              }
-            }
-
-            // Colors based on user spec:
-            // 1g (<=1) -> red
-            // 2g (==2) -> yellow/amber
-            // 3g and above (>=3) -> black
-            let badgeStyle = "text-gray-900 bg-gray-100 border-gray-200";
-            let iconColor = "text-gray-500";
-            if (daysLeft !== null) {
-              if (daysLeft <= 1) {
-                badgeStyle = "text-red-700 bg-red-50 border-red-200/90";
-                iconColor = "text-red-600";
-              } else if (daysLeft === 2) {
-                badgeStyle = "text-amber-800 bg-amber-50 border-amber-300";
-                iconColor = "text-amber-600";
-              } else {
-                badgeStyle = "text-gray-900 bg-gray-100 border-gray-200";
-                iconColor = "text-gray-700";
-              }
-            }
+            if (!countdownInfo) return null;
 
             return (
               <div 
-                className="flex items-center gap-0.5 sm:gap-1 shrink-0 select-none"
-                title={rawEndDate ? `Endirimin bitməsinə qalan gün: ${daysLeft !== null && daysLeft >= 0 ? `${daysLeft} gün` : 'Bitib'}` : 'Müddətsiz endirim'}
+                className="flex items-center gap-1 shrink-0 select-none ml-auto"
+                title={`Bitmə tarixi: ${countdownInfo.formattedDate} (${countdownInfo.daysLeft <= 0 ? (countdownInfo.daysLeft === 0 ? 'Bu gün bitir' : 'Bitib') : `${countdownInfo.daysLeft} gün qaldı`})`}
               >
                 <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center shrink-0">
-                  <Clock className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${iconColor}`} strokeWidth={2.2} />
+                  <Clock className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${countdownInfo.iconColor}`} strokeWidth={2.2} />
                 </div>
-                {daysLeft !== null && (
-                  <span className={`text-[9px] sm:text-[10px] font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded border leading-none shrink-0 ${badgeStyle}`}>
-                    {daysLeft <= 0 ? '0g' : `${daysLeft}g`}
-                  </span>
-                )}
+                <span className={`text-[8.5px] sm:text-[9.5px] font-bold px-1.5 py-0.5 rounded border leading-none shrink-0 ${countdownInfo.badgeStyle}`}>
+                  {countdownInfo.label}
+                </span>
               </div>
             );
           })()}

@@ -108,13 +108,13 @@ const DEFAULT_SUPABASE_URL = "https://rnqdjdxokcpfwsqkzrfu.supabase.co";
 const DEFAULT_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJucWRqZHhva2NwZndzcWt6cmZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwODY0NDAsImV4cCI6MjA3OTY2MjQ0MH0.d1PsO4oMCU2SWDdey5yjVmVzet2uXwKbgbEkQJ9CJFM";
 
 const CartLoading = () => (
-  <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white/95 backdrop-blur-sm">
-    <div className="mb-6 relative">
+  <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-white/95 backdrop-blur-sm animate-[fadeIn_0.15s_ease-out]">
+    <div className="mb-4 sm:mb-6 relative">
       <div className="absolute inset-0 bg-green-100 rounded-full blur-xl opacity-50 animate-pulse"></div>
-      <ShoppingCart className="w-20 h-20 text-green-600 animate-spin" strokeWidth={1.5} />
+      <ShoppingCart className="w-14 h-14 sm:w-16 sm:h-16 text-green-600 animate-spin" strokeWidth={1.5} />
     </div>
-    <h2 className="text-3xl font-bold text-gray-800 tracking-tight">endirim<span className="text-green-600">.net</span></h2>
-    <p className="text-sm text-gray-500 mt-2 font-medium animate-pulse">Yüklənir...</p>
+    <h2 className="text-2xl sm:text-3xl font-black text-gray-800 tracking-tight">endirim<span className="text-green-600">.net</span></h2>
+    <p className="text-xs text-gray-400 mt-1.5 font-semibold animate-pulse">Yüklənir...</p>
   </div>
 );
 
@@ -636,6 +636,82 @@ interface ViewState {
   showFavorites: boolean;
 }
 
+const normalizeMarketProduct = (p: DiscountProduct): DiscountProduct => {
+  const exp = 
+    p.expiryDate || 
+    (p as any).bitis || 
+    (p as any).bitisTarixi || 
+    (p as any).bitis_tarixi || 
+    (p as any).bitis_tarix || 
+    (p as any).endDate || 
+    (p as any).end_date || 
+    (p as any).expiry_date || 
+    (p as any).son_tarix || 
+    (p as any).sonTarix;
+  return {
+    ...p,
+    expiryDate: exp ? String(exp).trim() : undefined,
+    bitis: (p as any).bitis || (exp ? String(exp).trim() : undefined)
+  };
+};
+
+const migrateMarketData = (incomingMarkets: MarketData[]): MarketData[] => {
+  const migrated = (incomingMarkets || []).map(m => {
+    let overrideColor = m.themeColor;
+    if (m.id === 'araz') overrideColor = 'amber';
+    if (m.id === 'oba') overrideColor = 'green';
+    
+    let overrideLogoUrl = m.logoUrl;
+    if (m.name.toLowerCase().includes('rahat')) {
+      overrideLogoUrl = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRTsEY6AAE18u9Y57PHT9fxiujtBzAMxNFVtZl7TgONVA&s=10';
+    }
+    
+    const normProducts = (m.products || []).map(normalizeMarketProduct);
+    let updatedMarket: MarketData = { 
+      ...m, 
+      themeColor: overrideColor, 
+      logoUrl: overrideLogoUrl,
+      products: normProducts
+    };
+
+    if (!updatedMarket.catalogs) updatedMarket.catalogs = [];
+
+    // Normalize products inside existing catalogs
+    updatedMarket.catalogs = updatedMarket.catalogs.map(c => {
+      const cProds = (c.products || []).map(normalizeMarketProduct);
+      let cEndDate = c.endDate;
+      if (!cEndDate) {
+        const dates = cProds.map(p => p.expiryDate || (p as any).bitis).filter(Boolean) as string[];
+        if (dates.length > 0) cEndDate = dates.sort()[dates.length - 1];
+      }
+      return {
+        ...c,
+        products: cProds,
+        endDate: cEndDate
+      };
+    });
+
+    if (updatedMarket.catalogs.length === 0 && normProducts.length > 0) {
+      const dates = normProducts.map(p => p.expiryDate || (p as any).bitis).filter(Boolean) as string[];
+      const catalogEndDate = dates.length > 0 ? dates.sort()[dates.length - 1] : undefined;
+      return {
+        ...updatedMarket,
+        catalogs: [{
+          id: 'main',
+          name: 'Əsas Kataloq',
+          products: normProducts,
+          lastUpdated: updatedMarket.lastUpdated || new Date().toISOString(),
+          url: updatedMarket.url,
+          endDate: catalogEndDate
+        }]
+      };
+    }
+    return updatedMarket;
+  });
+
+  return sortMarketsByOrder(migrated);
+};
+
 const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig | null>(() => {
@@ -651,7 +727,18 @@ const App: React.FC = () => {
     return false;
   });
 
-  const [markets, setMarkets] = useState<MarketData[]>(INITIAL_MARKETS);
+  const [markets, setMarkets] = useState<MarketData[]>(() => {
+    try {
+      const saved = localStorage.getItem('marketData_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return migrateMarketData(parsed);
+        }
+      }
+    } catch (e) {}
+    return INITIAL_MARKETS;
+  });
   const [favorites, setFavorites] = useState<FavoriteItem[]>(() => {
     try {
       const saved = localStorage.getItem('endirim_favorites');
@@ -823,72 +910,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [activeMarketId]);
 
-  const migrateMarketData = (incomingMarkets: MarketData[]): MarketData[] => {
-    const normalizeProd = (p: DiscountProduct): DiscountProduct => {
-      const exp = p.expiryDate || (p as any).bitis || (p as any).bitisTarixi || (p as any).endDate || (p as any).expiry_date;
-      return {
-        ...p,
-        expiryDate: exp ? String(exp).trim() : undefined,
-        bitis: (p as any).bitis || exp || undefined
-      };
-    };
-
-    const migrated = (incomingMarkets || []).map(m => {
-      let overrideColor = m.themeColor;
-      if (m.id === 'araz') overrideColor = 'amber';
-      if (m.id === 'oba') overrideColor = 'green';
-      
-      let overrideLogoUrl = m.logoUrl;
-      if (m.name.toLowerCase().includes('rahat')) {
-        overrideLogoUrl = 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRTsEY6AAE18u9Y57PHT9fxiujtBzAMxNFVtZl7TgONVA&s=10';
-      }
-      
-      const normProducts = (m.products || []).map(normalizeProd);
-      let updatedMarket: MarketData = { 
-        ...m, 
-        themeColor: overrideColor, 
-        logoUrl: overrideLogoUrl,
-        products: normProducts
-      };
-
-      if (!updatedMarket.catalogs) updatedMarket.catalogs = [];
-
-      // Normalize products inside existing catalogs
-      updatedMarket.catalogs = updatedMarket.catalogs.map(c => {
-        const cProds = (c.products || []).map(normalizeProd);
-        let cEndDate = c.endDate;
-        if (!cEndDate) {
-          const dates = cProds.map(p => p.expiryDate).filter(Boolean) as string[];
-          if (dates.length > 0) cEndDate = dates.sort()[dates.length - 1];
-        }
-        return {
-          ...c,
-          products: cProds,
-          endDate: cEndDate
-        };
-      });
-
-      if (updatedMarket.catalogs.length === 0 && normProducts.length > 0) {
-        const dates = normProducts.map(p => p.expiryDate).filter(Boolean) as string[];
-        const catalogEndDate = dates.length > 0 ? dates.sort()[dates.length - 1] : undefined;
-        return {
-          ...updatedMarket,
-          catalogs: [{
-            id: 'main',
-            name: 'Əsas Kataloq',
-            products: normProducts,
-            lastUpdated: updatedMarket.lastUpdated || new Date().toISOString(),
-            url: updatedMarket.url,
-            endDate: catalogEndDate
-          }]
-        };
-      }
-      return updatedMarket;
-    });
-
-    return sortMarketsByOrder(migrated);
-  };
-
   useEffect(() => {
     if (supabaseConfig) {
       const success = supabaseService.initializeSupabase(supabaseConfig);
@@ -897,18 +918,21 @@ const App: React.FC = () => {
   }, [supabaseConfig]);
 
   useEffect(() => {
-    const safetyTimer = setTimeout(() => setIsLoading(false), 8000);
+    const safetyTimer = setTimeout(() => setIsLoading(false), 2000);
     if (isCloudConnected) {
       const unsubMarkets = supabaseService.subscribeToMarkets((data) => {
         if (data && data.length > 0) {
           const migrated = migrateMarketData(data);
           setMarkets(migrated);
-          setTimeout(() => setIsLoading(false), 1400);
-        } else { setTimeout(() => setIsLoading(false), 1500); }
+          try { localStorage.setItem('marketData_v2', JSON.stringify(migrated)); } catch (e) {}
+          setIsLoading(false);
+        } else {
+          setIsLoading(false);
+        }
       });
       const unsubBanners = supabaseService.subscribeToBanners((b1, b2) => {
-        if(b1) setBanner1(b1);
-        if(b2) setBanner2(b2);
+        if (b1) setBanner1(b1);
+        if (b2) setBanner2(b2);
       });
       return () => { unsubMarkets(); unsubBanners(); clearTimeout(safetyTimer); };
     } else {
@@ -922,8 +946,10 @@ const App: React.FC = () => {
         if (savedB1) setBanner1(JSON.parse(savedB1));
         const savedB2 = localStorage.getItem('bannerData2');
         if (savedB2) setBanner2(JSON.parse(savedB2));
-      } catch (e) { console.error(e); } finally { 
-        setTimeout(() => setIsLoading(false), 1200); 
+      } catch (e) {
+        console.error(e);
+      } finally { 
+        setIsLoading(false); 
         clearTimeout(safetyTimer); 
       }
     }
@@ -1454,7 +1480,7 @@ const App: React.FC = () => {
     <>
       {isLoading && <CartLoading />}
 
-      <div className={`min-h-screen bg-white pb-24 font-sans flex flex-col transition-all duration-700 ${isLoading ? 'blur-lg scale-[0.99] opacity-80 pointer-events-none overflow-hidden h-screen' : 'blur-0 scale-100 opacity-100'}`}>
+      <div className={`min-h-screen bg-white pb-24 font-sans flex flex-col transition-opacity duration-200 ${isLoading ? 'opacity-0 pointer-events-none overflow-hidden h-screen' : 'opacity-100'}`}>
         {/* --- UNIFIED STICKY HEADER & MARKET SWITCHER --- */}
         <div ref={stickyHeaderRef} className="sticky top-0 z-50 bg-white shadow-xs">
           <Header 

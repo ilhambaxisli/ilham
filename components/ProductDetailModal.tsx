@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { X, ArrowLeft, CheckCircle2, TrendingDown, ArrowRight, ShoppingCart, Clock, Calendar } from 'lucide-react';
 import { DiscountProduct, MarketData } from '../types';
-import { parseDateString } from './ProductCard';
+import { parseDateString, extractProductEndDate, calculateDaysLeft } from './ProductCard';
 
 interface ProductDetailModalProps {
   isOpen: boolean;
@@ -125,14 +125,9 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     return `${day}.${month}.${year}`;
   };
 
-  const effectiveEndDate = 
-    product.expiryDate || 
-    (product as any).bitis || 
-    (product as any).bitisTarixi || 
-    (product as any).endDate || 
-    (product as any).expiry_date || 
-    catalogEndDate;
-  const formattedEndDate = formatEndDate(effectiveEndDate);
+  const effectiveEndDate = extractProductEndDate(product, catalogEndDate);
+  const countdownInfo = calculateDaysLeft(effectiveEndDate);
+  const formattedEndDate = countdownInfo?.formattedDate || formatEndDate(effectiveEndDate);
 
   // Image Fallback
   const imageUrl = product.customImageUrl 
@@ -208,9 +203,9 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                  
                  {formattedEndDate ? (
                    <div className="flex flex-col items-end">
-                       <div className="flex items-center gap-1.5 text-amber-800 bg-amber-50 px-2.5 py-1.5 rounded-lg text-xs font-bold border border-amber-200/80 shadow-2xs">
-                        <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                        <span>Bitmə: {formattedEndDate}</span>
+                       <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold border shadow-2xs ${countdownInfo?.badgeStyle || 'text-amber-800 bg-amber-50 border-amber-200/80'}`}>
+                        <Clock className={`w-3.5 h-3.5 shrink-0 ${countdownInfo?.iconColor || 'text-amber-600'}`} />
+                        <span>Bitmə: {formattedEndDate}{countdownInfo ? ` (${countdownInfo.label})` : ''}</span>
                        </div>
                    </div>
                  ) : (
